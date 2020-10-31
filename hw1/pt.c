@@ -41,7 +41,6 @@ void print_binary(uint64_t number){
         print_binary(number >> 1);
     }
     putc((number & 1) ? '1' : '0', stdout);
-	putc('\n', stdout);
 }
 
 
@@ -62,14 +61,14 @@ int is_valid_ppn_size(uint64_t ppn){
  * returns the index in the level's corresponding page table.
  */
 uint64_t get_vpn_index(uint64_t vpn, int level){
-	printf("\nget_vpn_index:\n");
-	printf("vpn :"); print_int64_value(vpn);
+	printf("\nFUNC get_vpn_index:\n");
+	printf("vpn :"); print_int64_value(vpn); print_binary(vpn);printf("\n");
 	printf("level :%d\n", level);
 	int offset = 7 + (level*9);
 	uint64_t index = (vpn << offset) >> 55;
 	/* move left that the first 9 digits will be the relevant ones
 	 * and 55 to the right so at the the end the number represents the number of offset bytes */
-	printf("return: "); print_int64_value(index);
+	printf("FUNC get_vpn_index RETURN: "); print_int64_value(index);
 	return index;
 }
 
@@ -78,7 +77,11 @@ uint64_t get_vpn_index(uint64_t vpn, int level){
  * The method gets ppn and returns if is valid bit = 1
  */
 int is_entry_valid(uint64_t ppn){
-	return ppn & 0x1;
+	printf("\nFUNC is_entry_valid:\n");
+	printf("ppn: "); print_int64_value(ppn);	
+	int ret = ppn & 0x1;
+	printf("FUNC is_entry_valid RETURN : %d\n", ret);
+	return ret;
 }
 
 
@@ -91,27 +94,25 @@ int is_entry_valid(uint64_t ppn){
  *	~~~~~  add doc about the address ~~~~
  */
 int is_valid_entry_exist(uint64_t pt, int pt_level ,uint64_t vpn, uint64_t* address){
-	printf("\nis_valid_entry_exist:\n");
+	printf("\nFUNC is_valid_entry_exist:\n");
 	printf("pt: "); print_int64_value(pt);
 	printf("pt_level: "); print_int64_value(pt_level);
 	printf("vpn: "); print_int64_value(vpn);
 	printf("*address: "); print_int64_value(*address);
-	int ret;
+	
+	int ret = 0;
 	uint64_t index = get_vpn_index(vpn, pt_level);
-	/*uint64_t new_address = *((char *)pt + index);
-	if(new_address == 0){
+	uint64_t new_address = pt + index;
+	printf("new_address :"); print_int64_value(new_address);
+	if(is_entry_valid(new_address)){
+		*address = ((new_address >> 1) << 1) ; // need to delete to valid bit (it should be 0)
+		ret = 1;
+	}
+	else { // there is an address but it is not a valid one.
 		ret = 0;
 	}
-	else { // there is an address in the wanted index from the base of the page table.
-		if(is_entry_valid(new_address)){
-			*address = ((new_address >> 1) << 1) ; // need to delete to valid bit (it should be 0)
-			ret = 1;
-		}
-		else { // there is an address but it is not a valid one.
-			ret = 0;
-		}
-	}
-	printf("return : %d\n", ret);*/
+	
+	printf("FUNC is_valid_entry_exist RETURN : %d\n", ret);
 	return ret;
 }
 
@@ -125,13 +126,18 @@ uint64_t get_vpn_offset(uint64_t vpn){
  *	The method gets -
  *		pt - base address of the page table
  *		vpn - to search for
- *	returns uint64_t ppn - physical page number that the vpn is mapped to or NO_MAPPING if no mapping exists.
+ *	returns uint64_t ppn - physical page number that the vpn is mapped to 
+ * 		or NO_MAPPING if no mapping exists.
  */
 uint64_t page_table_query(uint64_t pt, uint64_t vpn){
+	printf("\nFUNC page_table_query:\n");
+	printf("pt: "); print_int64_value(pt);
+	printf("vpn: "); print_int64_value(vpn);
 	uint64_t* new_pt_address = (uint64_t*)calloc(1, sizeof(uint64_t*));
 	uint64_t pt_base = pt;
 	int is_valid_entry = 1;
 	int level = 0;
+	uint64_t ret = NO_MAPPING;
 	for(; level < num_of_levels ; level++){
 		is_valid_entry = is_valid_entry_exist(pt_base, level, vpn, new_pt_address);
 		if(!is_valid_entry){
@@ -145,14 +151,19 @@ uint64_t page_table_query(uint64_t pt, uint64_t vpn){
 		uint64_t offest = get_vpn_offset(vpn);
 		return pt_base | offest ;
 	}*/
-	return NO_MAPPING;
+	if(is_valid_entry){
+		ret = new_pt_address;
+	}
+	printf("FUNC page_table_query RETURN : "); print_int64_value(ret);
+	return ret;
 }
 
+ 
 
 
 /**
  *	The method takes 3 arguments -
- *		1. ppn - physical page number of the root register in the CPU state (can assume that exists).
+ *		1. pt - physical page number of the root register in the CPU state (can assume that exists).
  *		2. vpn - virtual page number the caller wishes to map.
  *		3. ppn -
  *			if ppn is equal to NO_MAPPING value -
@@ -163,7 +174,24 @@ uint64_t page_table_query(uint64_t pt, uint64_t vpn){
  */
 void page_table_update(uint64_t pt, uint64_t vpn, uint64_t ppn){
 	if(!is_valid_ppn_size(ppn)){
-		/* ~~~~ add code ~~~~ */
+		return;
+	}
+	uint64_t* new_pt_address = (uint64_t*)calloc(1, sizeof(uint64_t*));
+	uint64_t pt_base = pt;
+	int is_valid_entry = 1;
+	int level = 0;
+	uint64_t ret = NO_MAPPING;
+	uint64_t index;
+
+	for(; level < num_of_levels ; level++){
+		is_valid_entry = is_valid_entry_exist(pt_base, level, vpn, new_pt_address);
+		if(!is_valid_entry){
+			index = get_vpn_index(vpn,level);
+			
+		}
+		else {// need to change the parameters for the next page table level
+			pt_base = *new_pt_address;
+		}
 	}
 }
 
