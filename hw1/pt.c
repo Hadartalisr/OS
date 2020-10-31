@@ -156,11 +156,11 @@ void page_table_update(uint64_t pt, uint64_t vpn, uint64_t ppn){
 
 
 int main(){
-	uint64_t t = 12;
+	// uint64_t t = 12;
 	int i = 0xf2;
 	i = get_vpn_index(i,4);
 	printf("%d\n",i);
-	printf("%d",i << 7);
+	printf("%d\n",i << 7);
 }
 
 
