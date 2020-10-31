@@ -41,6 +41,7 @@ void print_binary(uint64_t number){
         print_binary(number >> 1);
     }
     putc((number & 1) ? '1' : '0', stdout);
+	putc('\n', stdout);
 }
 
 
@@ -61,10 +62,14 @@ int is_valid_ppn_size(uint64_t ppn){
  * returns the index in the level's corresponding page table.
  */
 uint64_t get_vpn_index(uint64_t vpn, int level){
+	printf("\nget_vpn_index:\n");
+	printf("vpn :"); print_int64_value(vpn);
+	printf("level :%d\n", level);
 	int offset = 7 + (level*9);
 	uint64_t index = (vpn << offset) >> 55;
 	/* move left that the first 9 digits will be the relevant ones
 	 * and 55 to the right so at the the end the number represents the number of offset bytes */
+	printf("return: "); print_int64_value(index);
 	return index;
 }
 
@@ -86,20 +91,28 @@ int is_entry_valid(uint64_t ppn){
  *	~~~~~  add doc about the address ~~~~
  */
 int is_valid_entry_exist(uint64_t pt, int pt_level ,uint64_t vpn, uint64_t* address){
+	printf("\nis_valid_entry_exist:\n");
+	printf("pt: "); print_int64_value(pt);
+	printf("pt_level: "); print_int64_value(pt_level);
+	printf("vpn: "); print_int64_value(vpn);
+	printf("*address: "); print_int64_value(*address);
+	int ret;
 	uint64_t index = get_vpn_index(vpn, pt_level);
-	uint64_t new_address = *((char *)pt + index);
+	/*uint64_t new_address = *((char *)pt + index);
 	if(new_address == 0){
-		return 0;
+		ret = 0;
 	}
 	else { // there is an address in the wanted index from the base of the page table.
 		if(is_entry_valid(new_address)){
 			*address = ((new_address >> 1) << 1) ; // need to delete to valid bit (it should be 0)
-			return 1;
+			ret = 1;
 		}
 		else { // there is an address but it is not a valid one.
-			return 0;
+			ret = 0;
 		}
 	}
+	printf("return : %d\n", ret);*/
+	return ret;
 }
 
 
@@ -128,10 +141,10 @@ uint64_t page_table_query(uint64_t pt, uint64_t vpn){
 			pt_base = *new_pt_address;
 		}
 	}
-	if(level == 5 && is_valid_entry){ // we got to search in the 5_th level page table
+	/*if(level == 5 && is_valid_entry){ // we got to search in the 5_th level page table
 		uint64_t offest = get_vpn_offset(vpn);
 		return pt_base | offest ;
-	}
+	}*/
 	return NO_MAPPING;
 }
 
@@ -154,7 +167,7 @@ void page_table_update(uint64_t pt, uint64_t vpn, uint64_t ppn){
 	}
 }
 
-
+/*
 int main(){
 	// uint64_t t = 12;
 	int i = 0xf2;
@@ -162,7 +175,7 @@ int main(){
 	printf("%d\n",i);
 	printf("%d\n",i << 7);
 }
-
+*/
 
 
 
