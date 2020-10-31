@@ -85,7 +85,7 @@ int is_valid_entry_exist(uint64_t pt_num, int pt_level ,uint64_t vpn, uint64_t* 
 	printf("pt_num: "); print_int64_value(pt_num);
 	printf("pt_level: "); print_int64_value(pt_level);
 	printf("vpn: "); print_int64_value(vpn);
-	printf("pt_address: ");print_int64_value(phys_to_virt(pt_num)) 
+	printf("pt_address: ");print_int64_value(phys_to_virt(pt_num));
 	printf("pt_binaray_address: ");print_binary(phys_to_virt(pt_num));printf("\n"); 
 	int ret = 0;
 	uint64_t index = get_vpn_index(vpn, pt_level);
@@ -180,10 +180,12 @@ void page_table_update(uint64_t pt, uint64_t vpn, uint64_t ppn){
 				printf("\n");
 				new_pt_num = alloc_page_frame(); 
 				printf("new_pt_adress :"); 
+				printf("%d",new_pt_num);
 				print_int64_value(phys_to_virt(new_pt_num)); 
 				print_binary(phys_to_virt(new_pt_num));printf("\n");
 				
 				printf("current pt base address:"); 
+				printf("%d",pt_base_num);
 				print_int64_value(phys_to_virt(pt_base_num)); 
 				print_binary(phys_to_virt(pt_base_num));printf("\n");
 
