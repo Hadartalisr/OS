@@ -54,21 +54,6 @@ int main(int argc, char **argv)
 {
 	uint64_t pt = alloc_page_frame();
 	assert(page_table_query(pt, 0xcafe) == NO_MAPPING);
-	print_int64_value(pt);
-	printf("\n\n\n\n");
-	void* va = phys_to_virt(pt);
-	printf("%d",va);
-	printf("\n\n\n\n");
-	print_binary(va);
-
-
-	uint64_t pt2 = alloc_page_frame();
-	print_int64_value(pt2);
-	printf("\n\n\n\n");
-	void* va2 = phys_to_virt(pt2);
-	printf("%d",va2);
-	printf("\n\n\n\n");
-	print_binary(va2);
 
 	
 	printf("\n\n\n\n\n\n\n\n");
