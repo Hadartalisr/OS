@@ -147,12 +147,19 @@ void update_many_with_prefix(uint64_t pt) {
 		ppn_arr[i] = get_random_ppn();
 
 		page_table_update(pt, vpn_arr[i], ppn_arr[i]);	
-		assert_equal(page_table_query(pt, vpn_arr[i]), ppn_arr[i]);
+		uint64_t test = page_table_query(pt, vpn_arr[i]);
+		if(test == ppn_arr[i]){
+			printf("OK 1\n");
+		}
+		assert_equal(test, ppn_arr[i]);
 	}
 
 	for (int i = 0; i < amount; i++) {
 		uint64_t value = page_table_query(pt, vpn_arr[i]);
 		uint64_t expected = ppn_arr[i];
+		if(value == expected){
+			printf("OK 2\n");
+		}
 		if (value != expected) {
 			printf("Set values:\n");
 			for (int j = 0; j < amount; j++)
