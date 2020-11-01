@@ -209,7 +209,7 @@ void page_table_update(uint64_t pt, uint64_t vpn, uint64_t ppn){
 			*next_pt_base_address = (uint64_t)phys_to_virt(allocate_frame()); 
 			D printf("new_pt_address :"); D print_int64_value(*next_pt_base_address); 			
 
-			uint64_t index_pointer_address = pt_base_address + index;
+			uint64_t index_pointer_address = pt_base_address + (index << 3);
 			D printf("pointer to next pt new address: "); D print_int64_value(index_pointer_address); 
 			*((uint64_t *)(index_pointer_address)) = (*next_pt_base_address) | 0x1;	
 		}
