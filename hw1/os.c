@@ -54,18 +54,13 @@ int main(int argc, char **argv)
 
 	uint64_t pt =  allocate_frame();
 	print_int64_value(pt);
-	assert(page_table_query(pt, 0xcafe) == NO_MAPPING);
-	printf("\n\n\n\n\n\n\n\n\n\n\n");
-	
-	page_table_update(pt, 0xcafe, 0xf00d);
-	assert(page_table_query(pt, 0xcafe) == 0xf00d);
-	
-	/*
+	assert(page_table_query(pt, 0xcafe) == NO_MAPPING);	
 	page_table_update(pt, 0xcafe, 0xf00d);
 	assert(page_table_query(pt, 0xcafe) == 0xf00d);
 	page_table_update(pt, 0xcafe, NO_MAPPING);
-	assert(page_table_query(pt, 0xcafe) == NO_MAPPING);new_addre
-	*/
+	assert(page_table_query(pt, 0xcafe) == NO_MAPPING);
+	
+
 	printf("\n\n Finished successfully! \n");
 	return 0;
 }
