@@ -146,9 +146,9 @@ uint64_t get_vpn_offset(uint64_t vpn){
  * 		or NO_MAPPING if no mapping exists.
  */
 uint64_t page_table_query(uint64_t pt, uint64_t vpn){
-	 printf("\nFUNC page_table_query:\n");
-	 printf("pt: ");  print_int64_value(pt);
-	 printf("vpn: ");  print_int64_value(vpn);
+	D printf("\nFUNC page_table_query:\n");
+	D printf("pt: "); D print_int64_value(pt);
+	D printf("vpn: "); D  print_int64_value(vpn);
 	vpn = vpn << 12;
 	
 	uint64_t pt_base_address = (uint64_t)phys_to_virt(pt);
@@ -168,7 +168,7 @@ uint64_t page_table_query(uint64_t pt, uint64_t vpn){
 		pt_base_address = pt_base_address >> 12;
 		ret = pt_base_address;
 	}
-	printf("FUNC page_table_query RETURN : ");  print_int64_value(ret);
+	D printf("FUNC page_table_query RETURN : "); D print_int64_value(ret);
 	free(next_pt_base_address);
 	return ret;
 }
@@ -186,10 +186,10 @@ uint64_t page_table_query(uint64_t pt, uint64_t vpn){
  *				specifies the ppn that vpn should be mapped to.
  */
 void page_table_update(uint64_t pt, uint64_t vpn, uint64_t ppn){
-	 printf("\nFUNC page_table_update:\n");
-	 printf("pt: ");  print_int64_value(pt);
-	 printf("vpn: ");  print_int64_value(vpn);
-	 printf("ppn: ");  print_int64_value(ppn);
+	D printf("\nFUNC page_table_update:\n");
+	D printf("pt: "); D print_int64_value(pt);
+	D printf("vpn: "); D  print_int64_value(vpn);
+	D printf("ppn: "); D print_int64_value(ppn);
 	
 	vpn = vpn << 12;
 	uint64_t pt_base_address = (uint64_t)phys_to_virt(pt);
@@ -215,20 +215,20 @@ void page_table_update(uint64_t pt, uint64_t vpn, uint64_t ppn){
 		}
 		pt_base_address = *next_pt_base_address;
 	}
-	printf("~~~ 5_th level ~~~\n");
+	D printf("~~~ 5_th level ~~~\n");
 	// we have reached the 5_th level 
 	index = get_vpn_index(vpn, num_of_levels-1);
 	uint64_t index_pointer_address = pt_base_address + (index << 3);
-	printf("pointer to ppn address: "); print_int64_value(index_pointer_address); 
+	D printf("pointer to ppn address: "); D print_int64_value(index_pointer_address); 
 	if(ppn == NO_MAPPING){
 		ppn = 0x0;
 	}else {
 		ppn = (ppn << 12)| 0x1;
 	}
-	printf("page number which was located: "); print_int64_value(ppn);
+	D printf("page number which was located: "); D print_int64_value(ppn);
 	*((uint64_t *)(index_pointer_address)) = ppn;
 	free(next_pt_base_address);
-	printf("\nFUNC page_table_update FINISHED.\n");
+	D printf("\nFUNC page_table_update FINISHED.\n");
 }
 
 
