@@ -58,7 +58,7 @@ uint64_t allocate_frame(){
  */
 uint64_t get_vpn_index(uint64_t vpn, int level){
 	printf("\nFUNC get_vpn_index:\n");
-	printf("vpn :"); print_int64_value(vpn); print_binary(vpn);printf("\n");
+	printf("vpn :"); print_int64_value(vpn); 
 	printf("level :%d\n", level);
 	int offset = 7 + (level*9);
 	uint64_t index = (vpn << offset) >> 55;
@@ -66,6 +66,20 @@ uint64_t get_vpn_index(uint64_t vpn, int level){
 	 * and 55 to the right so at the the end the number represents the number of offset bytes */
 	printf("FUNC get_vpn_index RETURN: "); print_int64_value(index);
 	return index;
+}
+
+
+/**
+ * Tester for get_vpn_index.
+ */
+void vpn_test(uint64_t vpn){
+	printf("Func vpn test, vpn : ");print_int64_value(vpn);
+	print_binary(vpn);printf("\n");
+	for(int level = 0 ; level < num_of_levels ; level ++){
+		printf("level %d:\n", level);
+		print_int64_value(get_vpn_index(vpn, level));
+		printf("\n");
+	}
 }
 
 
@@ -143,9 +157,12 @@ uint64_t page_table_query(uint64_t pt, uint64_t vpn){
 		pt_base_address = *next_pt_base_address ;
 	}
 	if(is_valid_entry){ // the 5_th level 
-		pt_base_address = (pt_base_address >> 12) << 12 ;
-		uint64_t offest = get_vpn_offset(vpn);
-		ret = pt_base_address | offest ;
+		printf("\n~~~ 5_th level ~~~\n");
+		printf("pt_base_address: "); print_int64_value(pt_base_address);
+		printf("pt_level: "); print_int64_value(level);
+		printf("vpn: "); print_int64_value(vpn);
+		pt_base_address = pt_base_address >> 12;
+		ret = pt_base_address;
 	}
 	printf("FUNC page_table_query RETURN : "); print_int64_value(ret);
 	return ret;
@@ -169,7 +186,7 @@ void page_table_update(uint64_t pt, uint64_t vpn, uint64_t ppn){
 	printf("vpn: "); print_int64_value(vpn);
 	printf("ppn: "); print_int64_value(ppn);
 	
-	pt = pt << 12;
+	
 	uint64_t pt_base_address = (uint64_t)phys_to_virt(pt);
 	uint64_t* next_pt_base_address;
 	int is_valid_entry = 1;
@@ -201,7 +218,8 @@ void page_table_update(uint64_t pt, uint64_t vpn, uint64_t ppn){
 	ppn = ppn << 12;
 	index = get_vpn_index(vpn, num_of_levels-1);
 	uint64_t index_pointer_address = pt_base_address + index;
-	printf("pointer to ppt address: "); print_int64_value(index_pointer_address); 
+	printf("pointer to ppn address: "); print_int64_value(index_pointer_address); 
+	printf("ppn : ");print_int64_value(ppn);
 	*((uint64_t *)(index_pointer_address)) = ppn | 0x1;	
 	printf("\nFUNC page_table_update FINISHED.\n\n\n\n");
 }

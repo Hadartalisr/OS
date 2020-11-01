@@ -50,10 +50,12 @@ void* phys_to_virt(uint64_t phys_addr)
 
 int main(int argc, char **argv)
 {
+	//vpn_test(0xcafe);
+
 	uint64_t pt =  allocate_frame();
 	print_int64_value(pt);
 	assert(page_table_query(pt, 0xcafe) == NO_MAPPING);
-	printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+	printf("\n\n\n\n\n\n\n\n\n\n\n");
 	
 	page_table_update(pt, 0xcafe, 0xf00d);
 	assert(page_table_query(pt, 0xcafe) == 0xf00d);
