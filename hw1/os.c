@@ -4,10 +4,9 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/mman.h>
-#include <err.h>
-//#include "os.hSSS"
-#include "pt.c"
+#include <sys/mman.h> 
+#include <err.h> 
+#include "os.h"
 
 
 /*2^20 pages ought to be enough for anybody */
@@ -23,7 +22,7 @@ uint64_t alloc_page_frame(void)
 	void* va;
 
 	if (nalloc == NPAGES)
-		errx(1, "out of physical mem-ory");
+		errx(1, "out of physical memory");
 
 	/* OS memory management isn't really this simple */
 	ppn = nalloc;
@@ -42,37 +41,23 @@ void* phys_to_virt(uint64_t phys_addr)
 	uint64_t ppn = phys_addr >> 12;
 	uint64_t off = phys_addr & 0xfff;
 	void* va = NULL;
+
 	if (ppn < NPAGES)
 		va = pages[ppn] + off;
+
 	return va;
 }
 
-
 int main(int argc, char **argv)
 {
-	//vpn_test(0xcafe);
+	uint64_t pt = alloc_page_frame();
 
-	uint64_t pt =  allocate_frame();
-	print_int64_value(pt);
-	assert(page_table_query(pt, 0xcafe) == NO_MAPPING);	
+	assert(page_table_query(pt, 0xcafe) == NO_MAPPING);
 	page_table_update(pt, 0xcafe, 0xf00d);
 	assert(page_table_query(pt, 0xcafe) == 0xf00d);
 	page_table_update(pt, 0xcafe, NO_MAPPING);
 	assert(page_table_query(pt, 0xcafe) == NO_MAPPING);
-	
 
-	printf("\n\n Finished successfully! \n");
 	return 0;
 }
 
-	/*for(int i = 1; i < 10; i++){
-		pt =  allocate_frame();
-		print_int64_value(pt);
-		uint64_t new_address = pt;
-		uint64_t* p;
-		for(int j =0; j < 10; j++){
-			p = phys_to_virt(new_address+j*4);
-			print_int64_value(p);
-		}
-		printf("\n");
-	}*/

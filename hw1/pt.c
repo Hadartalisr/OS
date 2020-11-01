@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
-#include "os.h" /* The headers which i will implement in the assignment */
+#include "os.h"
 
 #ifdef DEBUG
 	#define D 
