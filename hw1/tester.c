@@ -146,15 +146,19 @@ void update_many_with_prefix(uint64_t pt) {
 		vpn_arr[i] = block + vpn_arr[i];
 		ppn_arr[i] = get_random_ppn();
 
-		page_table_update(pt, vpn_arr[i], ppn_arr[i]);	
+		printf("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n	Tester page table update:\n");
+		page_table_update(pt, vpn_arr[i], ppn_arr[i]);
+		printf("\n\n	Tester page table query:\n");	
 		uint64_t test = page_table_query(pt, vpn_arr[i]);
 		if(test == ppn_arr[i]){
 			printf("OK 1\n");
 		}
 		assert_equal(test, ppn_arr[i]);
 	}
+	printf("\n\n~~~~~~~~~~~~~ part 2 ~~~~~~~~~~~~~\n\n");
 
 	for (int i = 0; i < amount; i++) {
+			printf("\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n	Tester page table query:\n");
 		uint64_t value = page_table_query(pt, vpn_arr[i]);
 		uint64_t expected = ppn_arr[i];
 		if(value == expected){
@@ -163,8 +167,11 @@ void update_many_with_prefix(uint64_t pt) {
 		if (value != expected) {
 			printf("Set values:\n");
 			for (int j = 0; j < amount; j++)
-				printf("page_table[%llX] = %llX\n", vpn_arr[j], ppn_arr[j]);
-			printf("\nFailed on index %d,\ngot value %llX instead of %llX\n", i, value, expected);
+				printf("page_table[%d] = %d\n", vpn_arr[j], ppn_arr[j]);
+			//printf("\nFailed on index %d,\ngot value %llX instead of %llX\n", i, value, expected);
+			printf("\nFailed on index %d,\ngot value:", i);
+			printf("%d \n",value);
+			printf("instead of: %d\n",expected);
 			assert(0);
 		}
 	}

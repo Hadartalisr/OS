@@ -6,13 +6,13 @@ clean:
 	rm ./3 ./test.o
 
 hw1: hw1.o
-	./3
+	./3 
 
 hw1.o : 
 	gcc $(FLAGS) os.c pt.c
 
 test: test.o
-	./test.o
+	./test.o 
 
 test.o:
 	gcc $(FLAGS) tester.c pt.c -o test.o $(LIBS)
