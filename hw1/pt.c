@@ -68,7 +68,7 @@ uint64_t get_vpn_index(uint64_t vpn, int level){
 	uint64_t index = (vpn >> offset) & 0x1FF;  // first 9 digits are 1's
 	/* move left that the first 9 digits will be the relevant ones
 	 * and 55 to the right so at the the end the number represents the number of offset bytes */
-	printf("FUNC get_vpn_index RETURN: "); print_int64_value(index);
+	D printf("FUNC get_vpn_index RETURN: "); D print_int64_value(index);
 	return index;
 }
 
@@ -109,13 +109,13 @@ int is_entry_valid(uint64_t ppn){
  */
 int is_valid_entry_exist(uint64_t pt_base_address, int pt_level ,uint64_t vpn, uint64_t* next_pt_base_address){
 	D printf("\nFUNC is_valid_entry_exist:\n");
-	printf("pt_base_address: ");  print_int64_value(pt_base_address);
-	printf("pt_level: "); print_int64_value(pt_level);
+	D printf("pt_base_address: "); D print_int64_value(pt_base_address);
+	D printf("pt_level: "); D print_int64_value(pt_level);
 	D printf("vpn: "); D print_int64_value(vpn);
 
 	int ret = 0;
 	uint64_t index = get_vpn_index(vpn, pt_level);
-	uint64_t index_pointer_address = pt_base_address+ (index << 3);
+	uint64_t index_pointer_address = pt_base_address + (index << 3);
 	D printf("address of index in the table:"); D print_int64_value(index_pointer_address); 
 
 	uint64_t index_pointer_val = *((uint64_t *)index_pointer_address);
@@ -149,7 +149,7 @@ uint64_t page_table_query(uint64_t pt, uint64_t vpn){
 	 printf("\nFUNC page_table_query:\n");
 	 printf("pt: ");  print_int64_value(pt);
 	 printf("vpn: ");  print_int64_value(vpn);
-
+	vpn = vpn << 12;
 	
 	uint64_t pt_base_address = (uint64_t)phys_to_virt(pt);
 	uint64_t* next_pt_base_address = (uint64_t*)calloc(1, sizeof(uint64_t*));
@@ -161,8 +161,8 @@ uint64_t page_table_query(uint64_t pt, uint64_t vpn){
 		pt_base_address = *next_pt_base_address ;
 	}
 	if(is_valid_entry){ // the 5_th level 
-		printf("\n~~~ 5_th level ~~~\n");
-		printf("ppn_base_address: ");  print_int64_value(pt_base_address);
+		D printf("\n~~~ 5_th level ~~~\n");
+		D printf("ppn_base_address: "); D print_int64_value(pt_base_address);
 		D printf("pt_level: "); D print_int64_value(level);
 		D printf("vpn: "); D print_int64_value(vpn);
 		pt_base_address = pt_base_address >> 12;
@@ -191,7 +191,7 @@ void page_table_update(uint64_t pt, uint64_t vpn, uint64_t ppn){
 	 printf("vpn: ");  print_int64_value(vpn);
 	 printf("ppn: ");  print_int64_value(ppn);
 	
-	
+	vpn = vpn << 12;
 	uint64_t pt_base_address = (uint64_t)phys_to_virt(pt);
 	uint64_t* next_pt_base_address = (uint64_t*)calloc(1, sizeof(uint64_t*));
 	int is_valid_entry = 1;
