@@ -4,16 +4,15 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/mman.h> 
-#include <err.h> 
+#include <err.h>
+#include <sys/mman.h>
+
 #include "os.h"
 
-
-/*2^20 pages ought to be enough for anybody */
+/* 2^20 pages ought to be enough for anybody */
 #define NPAGES	(1024*1024)
 
 static void* pages[NPAGES];
-
 
 uint64_t alloc_page_frame(void)
 {
