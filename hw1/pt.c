@@ -100,15 +100,16 @@ int is_valid_entry_exist(uint64_t pt_base_address, int pt_level ,uint64_t vpn, u
 	uint64_t index_pointer_address = pt_base_address+index;;
 	printf("address of index in the table:"); print_int64_value(index_pointer_address); 
 
-	uint64_t index_pointer_val = *((uint64_t *)index_pointer_val);
-	printf("index_pointer_val:"); print_int64_value(index_pointer_val); print_binary(index_pointer_val);printf("\n");
-	*next_pt_base_address = index_pointer_val & 0x1;
+	uint64_t index_pointer_val = *((uint64_t *)index_pointer_address);
+	printf("index_pointer_val:"); print_int64_value(index_pointer_val); 
+	printf("index_pointer_binary_val:");print_binary(index_pointer_val);
 	if(is_entry_valid(index_pointer_val)){
 		ret = 1;
 	}
 	else {
 		ret = 0;
 	}
+	*next_pt_base_address = (index_pointer_val >> 1) << 1 ;
 	printf("FUNC is_valid_entry_exist RETURN : %d\n", ret);
 	return ret;
 }
@@ -137,16 +138,12 @@ uint64_t page_table_query(uint64_t pt, uint64_t vpn){
 	int is_valid_entry = 1;
 	int level = 0;
 	uint64_t ret = NO_MAPPING;
-	for(; level < num_of_levels-1 ; level++){
+	for(; (level <= num_of_levels-1) && is_valid_entry ; level++){
 		is_valid_entry = is_valid_entry_exist(pt_base_address, level, vpn, next_pt_base_address);
-		pt_base_address = *next_pt_base_address;
-		if(!is_valid_entry){
-			break;
-		}
+		pt_base_address = *next_pt_base_address ;
 	}
-	if(level == num_of_levels-1 && is_valid_entry){ // we got to search in the 5_th level page table
-		is_valid_entry_exist(pt_base_address, level, vpn, next_pt_base_address);
-		pt_base_address = *next_pt_base_address;
+	if(is_valid_entry){ // the 5_th level 
+		pt_base_address = (pt_base_address >> 12) << 12 ;
 		uint64_t offest = get_vpn_offset(vpn);
 		ret = pt_base_address | offest ;
 	}
@@ -172,44 +169,48 @@ void page_table_update(uint64_t pt, uint64_t vpn, uint64_t ppn){
 	printf("vpn: "); print_int64_value(vpn);
 	printf("ppn: "); print_int64_value(ppn);
 	
-	/* uint64_t pt_base_address = get_frame_address(pt);
-	uint64_t new_pt_address;
+	pt = pt << 12;
+	uint64_t pt_base_address = (uint64_t)phys_to_virt(pt);
+	uint64_t* next_pt_base_address;
 	int is_valid_entry = 1;
 	int level = 0;
 	uint64_t index;
 
-	for(; level < num_of_levels ; level++){
+	for(; level < num_of_levels-1 ; level++){
 		printf("level: %d.",level);
-		is_valid_entry = is_valid_entry_exist(pt_base_address, level, vpn, &new_pt_address);
+		is_valid_entry = is_valid_entry_exist(pt_base_address, level, vpn, next_pt_base_address);
 		if(!is_valid_entry){ // need to create new entry
 			index = get_vpn_index(vpn,level);
-			if(level != num_of_levels-1){
-				printf("\n");
+			printf("\n");
 
-				printf("current pt base address:"); 
-				print_int64_value(pt_base_address); 
-				print_binary(get_frame_address(pt_base_address));printf("\n");
+			printf("current pt base address:"); print_int64_value(pt_base_address); 
 
-				new_pt_address = get_frame_address(alloc_page_frame()); 
-				printf("new_pt_adress :"); 
-				print_int64_value(new_pt_address); 
-				print_binary(new_pt_address);printf("\n");				
+			*next_pt_base_address = (uint64_t)phys_to_virt(allocate_frame()); 
+			printf("new_pt_address :"); print_int64_value(*next_pt_base_address); 			
 
 
-				uint64_t new_pointer_address = pt_base_address +index;
-				printf("pointer to next pt new address: ");
-				print_int64_value(new_pointer_address); 
-				print_binary(new_pointer_address);printf("\n");
-				*((char *)(new_pointer_address)) = new_pt_address | 0x1;	
-				printf("\n");
-			}
+			uint64_t index_pointer_address = pt_base_address + index;
+			printf("pointer to next pt new address: "); print_int64_value(index_pointer_address); 
+			*((uint64_t *)(index_pointer_address)) = (*next_pt_base_address) | 0x1;	
+			printf("\n");
+		}
+		pt_base_address = *next_pt_base_address;
+	}
+	printf("~~~ 5_th level ~~~");
+	// we have reached the 5_th level 
+	ppn = ppn << 12;
+	index = get_vpn_index(vpn, num_of_levels-1);
+	uint64_t index_pointer_address = pt_base_address + index;
+	printf("pointer to ppt address: "); print_int64_value(index_pointer_address); 
+	*((uint64_t *)(index_pointer_address)) = ppn | 0x1;	
+	printf("\nFUNC page_table_update FINISHED.\n\n\n\n");
+}
+/* 
 			else{ // the last level - need to add the ppn
 				*((uint64_t *)(pt_base_address+index)) = ppn;
 			}
-		}
-		pt_base_address = (new_pt_address >> 1) << 1;
-	}*/
-}
+*/
+
 
 /*
 int main(){
