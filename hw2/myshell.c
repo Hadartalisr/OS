@@ -14,14 +14,14 @@
 #endif
 
 
-
 /**
  * The method return 1 if the cmd is a background cmd 
  */
 int is_background_cmd(int count, char** arglist){
-    int ret = (arglist[count-1] ==  "&"); // compare the last char to &
+    int ret = strcmp(arglist[count-1],"&") == 0; // compare the last char to &
     return ret; 
 }
+
 
 /**
  * The method checks if a cmd is has a pipe. 
@@ -30,7 +30,7 @@ int is_background_cmd(int count, char** arglist){
 int is_piped_cmd(int count, char** arglist, int* index){
     int ret = 0;
     for (int i=0 ; i<count ; i++){
-        if(arglist[i] == "|"){
+        if(strcmp(arglist[i],"|") == 0){
             ret = 1;
             *index = i;
         }
@@ -39,21 +39,33 @@ int is_piped_cmd(int count, char** arglist, int* index){
 }
 
 
+void child_sigint_handler(){
+    printf("\n");
+}
+
+
+void shell_sigint_handler(){}
+
+
 int run_proccess(int count, char** argslist, int is_background_cmd){
     pid_t pid = fork();
     if(pid < 0){ // system fork fuilare.
-        printf(stderr, "ERROR - The OS could not fork pid - %d.\n", getppid());
+        fprintf(stderr, "ERROR - The OS could not fork pid - %d.\n", getppid());
+        exit(EXIT_FAILURE);
     }
     if(pid == 0){ //child
+        signal(SIGINT,&child_sigint_handler);
         if(is_background_cmd){ // need to delete the last char
             argslist[count-1] = NULL;
         }
-        
+        execvp(argslist[0], argslist);
+        return 0;
     }
     else { //father
         if(!is_background_cmd){
-            waitpid(pid, NULL, NULL); // if  wait for the child to finish
+            waitpid(pid, NULL, 0); // if  wait for the child to finish
         }
+        return 0;
     }
 }
 
@@ -62,21 +74,28 @@ int process_arglist(int count, char** arglist){
     int ret ;
     int index; 
 
-    ret = is_piped_cmd(count, arglist, index);
+    ret = is_piped_cmd(count, arglist, &index);
     if (ret){
 
     }
-    ret = is_background_cmd(count, arglist);
-    ret = run_proccess(count, arglist, ret);
+    else {
+        ret = is_background_cmd(count, arglist);
+        ret = run_proccess(count, arglist, ret);
+    }
     return 1;
 }
 
 
+
+
+
 int prepare(void){
-    //signal(SIGINT,)
+    signal(SIGINT,&shell_sigint_handler); // change the sigint for the shell
     return 0;
 }
 
+
 int finalize(void){
-     return 0;   
+    // need to kill all the childs
+    return 0;   
 }
