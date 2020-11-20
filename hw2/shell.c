@@ -20,6 +20,8 @@ int main(void)
 	
 	while (1)
 	{
+		printf("new CMD: \n");
+
 		char** arglist = NULL;
 		char* line = NULL;
 		size_t size;
