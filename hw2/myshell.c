@@ -16,7 +16,7 @@
 
 
 /**
- * The method return 1 is the cmd is a background cmd 
+ * The method return 1 if the cmd is a background cmd 
  */
 int is_background_cmd(int count, char** arglist){
     int ret = (arglist[count-1] ==  "&"); // compare the last char to &
@@ -39,28 +39,41 @@ int is_piped_cmd(int count, char** arglist, int* index){
 }
 
 
+int run_proccess(int count, char** argslist, int is_background_cmd){
+    pid_t pid = fork();
+    if(pid < 0){ // system fork fuilare.
+        printf(stderr, "ERROR - The OS could not fork pid - %d.\n", getppid());
+    }
+    if(pid == 0){ //child
+        if(is_background_cmd){ // need to delete the last char
+            argslist[count-1] = NULL;
+        }
+        
+    }
+    else { //father
+        if(!is_background_cmd){
+            waitpid(pid, NULL, NULL); // if  wait for the child to finish
+        }
+    }
+}
+
+
 int process_arglist(int count, char** arglist){
     int ret ;
     int index; 
-    ret = is_background_cmd(count, arglist);
+
+    ret = is_piped_cmd(count, arglist, index);
     if (ret){
 
     }
-    else {
-        ret = is_piped_cmd(count, arglist, index);
-        if (ret){
-
-        }
-        else { // regulare cmd 
-
-        }
-    }
-    int index;
-
-
+    ret = is_background_cmd(count, arglist);
+    ret = run_proccess(count, arglist, ret);
+    return 1;
 }
 
+
 int prepare(void){
+    //signal(SIGINT,)
     return 0;
 }
 
