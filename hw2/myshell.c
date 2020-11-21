@@ -39,12 +39,16 @@ int is_piped_cmd(int count, char** arglist, int* index){
 }
 
 
-void child_sigint_handler(){
+void child_sigint_handler(){ // terminate the child
     printf("\n");
 }
 
+void shell_sigint_handler(){} // need to ignore the default sigint
 
-void shell_sigint_handler(){}
+
+void shell_sigchild_handler(){
+    
+}
 
 
 int run_proccess(int count, char** argslist, int is_background_cmd){
@@ -59,7 +63,9 @@ int run_proccess(int count, char** argslist, int is_background_cmd){
             argslist[count-1] = NULL;
         }
         execvp(argslist[0], argslist);
-        return 0;
+        // should not go in here - in case of error
+        fprintf(stderr, "ERROR - invalid command : %s ... ", argslist[0]);
+        exit(EXIT_FAILURE);
     }
     else { //father
         if(!is_background_cmd){
@@ -70,13 +76,70 @@ int run_proccess(int count, char** argslist, int is_background_cmd){
 }
 
 
+int run_piped_proccess(int count, char** arglist, int index){
+    arglist[index] = NULL;
+    char** cmd_one = arglist;
+    char** cmd_two = arglist + index + 1 ; // pointer to the first char array in the second cmd
+    int pipefd[2];
+    if(pipe(pipefd)== -1){
+        perror("Failed creating pipe");
+        exit(EXIT_FAILURE);
+    }
+    int readerfd = pipefd[0];
+    int writerfd = pipefd[1];
+
+    pid_t pid = fork();
+    if(pid < 0){ // system fork fuilare.
+        fprintf(stderr, "ERROR - The OS could not fork pid - %d.\n", getppid());
+        exit(EXIT_FAILURE);
+    }
+    else if (pid == 0){
+        // child - the writer
+        close(readerfd);
+        dup2(writerfd, STDOUT_FILENO);
+        execvp(cmd_one[0], cmd_one);
+        // should not go in here - in case of error
+        fprintf(stderr, "ERROR - invalid command : %s ... ", cmd_one[0]);
+        exit(EXIT_FAILURE);
+    }
+    else {
+        // parent - the shell process + the reader
+        pid_t pid2 = fork();
+        if(pid2 < 0){ // system fork fuilare.
+            fprintf(stderr, "ERROR - The OS could not fork pid - %d.\n", getppid());
+            exit(EXIT_FAILURE);
+        }
+        else if(pid2 == 0){
+            // child - the reader process
+            close(writerfd);
+            dup2(readerfd, STDIN_FILENO);
+            execvp(cmd_two[0], cmd_two);
+            // should not go in here - in case of error
+            fprintf(stderr, "ERROR - invalid command : %s ... ", cmd_two[0]);
+            exit(EXIT_FAILURE);
+
+        }
+        else{
+            // parent - the shell process
+            signal(SIGINT,&child_sigint_handler);
+            waitpid(pid, NULL, 0);
+            waitpid(pid2, NULL, 0);
+            close(readerfd);
+            close(writerfd);
+
+        }
+    }
+    return 0;
+}
+
+
 int process_arglist(int count, char** arglist){
     int ret ;
     int index; 
 
     ret = is_piped_cmd(count, arglist, &index);
     if (ret){
-
+        run_piped_proccess(count, arglist, index);
     }
     else {
         ret = is_background_cmd(count, arglist);
@@ -86,11 +149,9 @@ int process_arglist(int count, char** arglist){
 }
 
 
-
-
-
 int prepare(void){
     signal(SIGINT,&shell_sigint_handler); // change the sigint for the shell
+    signal(SIGCHLD,&child_sigint_handler);
     return 0;
 }
 
