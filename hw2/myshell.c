@@ -36,6 +36,7 @@ void shell_ignore_sigint(){
     struct sigaction act;
     memset (&act, '\0', sizeof(act));
     act.sa_handler = SIG_IGN;
+    act.sa_flags = SA_RESTART;
     if(sigaction(SIGINT,&act, NULL) == -1){
         perror("ERROR - sigaction failure");
     }
@@ -46,9 +47,18 @@ void shell_ignore_child_sigint(){
     struct sigaction act;
     memset (&act, '\0', sizeof(act));
     act.sa_handler = SIG_IGN;
+    act.sa_flags = SA_RESTART;
     if(sigaction(SIGCHLD,&act, NULL) == -1){
         perror("ERROR - sigaction failure");
     }
+    struct sigaction act_two;
+    memset (&act_two, '\0', sizeof(act_two));
+    act_two.sa_handler = SIG_IGN;
+    act_two.sa_flags = SA_RESTART;
+    if(sigaction(ECHILD,&act_two, NULL) == -1){
+        perror("ERROR - sigaction failure");
+    }
+    
 }
 
 
@@ -156,8 +166,8 @@ int run_piped_proccess(int count, char** arglist, int index){
             // parent - the shell process
             close(pipefd[0]);
             close(pipefd[1]);
-            waitpid(pid, NULL, 0);
-            waitpid(pid2, NULL, 0);
+            waitpid(pid, NULL, WUNTRACED);
+            waitpid(pid2, NULL, WUNTRACED);
         }
     }
     return 1;
