@@ -147,7 +147,7 @@ uint64_t get_vpn_offset(uint64_t vpn){
  */
 uint64_t page_table_query(uint64_t pt, uint64_t vpn){
 	D printf("\nFUNC page_table_query:\n");
-	D printf("pt: "); D print_int64_value(pt);
+	printf("pt: "); print_int64_value(pt);
 	D printf("vpn: "); D  print_int64_value(vpn);
 	vpn = vpn << 12;
 	
