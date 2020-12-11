@@ -28,11 +28,11 @@ typedef struct FILE_CONFIG{
   unsigned long channel_id ; 
 } file_config;
 
-typedef struct MESSAGE
+struct message
 {
   char buffer[BUF_LEN]; // the messfage buffer
   int size; // the size of the message
-} message;
+};
 
 // used to prevent concurent access into the same device
 static int dev_open_flag = 0;
@@ -71,6 +71,34 @@ int free_all_minors(void){
   };
   return SUCCESS;
 }
+
+// return the message for a given file
+// if message doesnt exist and the channel_id is valid - create new message and returns it.
+struct message* get_message_from_file(struct file* file){
+  int minor_num;
+  unsigned long channel_id;
+  struct radix_tree_root* root;
+  struct message* message;
+
+  minor_num = ((file_config *)(file -> private_data))-> minor_num;
+  channel_id = ((file_config *)(file -> private_data))-> channel_id;
+  root = minors[minor_num];
+  if(channel_id == 0){
+    return NULL;
+  }
+  message = (struct message*)radix_tree_lookup(root, channel_id);
+  if(message == NULL){
+    message = (struct message*)kmalloc(sizeof(struct message*), GFP_KERNEL);
+    if(message == NULL){
+      return NULL;
+    }
+    message->size = 0;
+    radix_tree_insert(root, channel_id, message);
+  }
+  return message;
+
+}
+
 
 
 //================== DEVICE FUNCTIONS ===========================
@@ -138,8 +166,15 @@ static ssize_t device_read( struct file* file,
                             loff_t*      offset )
 {
 
-  //invalid argument error
-  return -EINVAL;
+  int status; 
+  struct message* message;
+
+  message = get_message_from_file(file);
+  status = copy_to_user(buffer, message->buffer, message->size);
+  if(status < 0){
+    return -EINVAL;
+  }
+  return message->size;
 }
 
 //---------------------------------------------------------------
@@ -151,11 +186,21 @@ static ssize_t device_write( struct file*       file,
                              loff_t*            offset)
 {
   int i;
-  printk("Invoking device_write(%p,%ld)\n", file, length);
-  for( i = 0; i < length && i < BUF_LEN; ++i )
-  {
-     // get_user(the_message[i], &buffer[i]);
+  struct message* message;
 
+  message = get_message_from_file(file);
+  if(message == NULL || buffer == NULL || length == 0 || length > BUF_LEN){
+    return -EINVAL;
+  }
+
+  for(i = 0 ; i < length ; i++){
+    get_user(message->buffer[i], &buffer[i]);
+  }
+  if(i == length){ // OK
+    message->size = length;
+  }
+  else{
+    message->size = 0;
   }
  
   // return the number of input characters used
