@@ -22,7 +22,7 @@ MODULE_LICENSE("GPL");
 //--- loader ---------------------------------------------
 static int hello_init(void)
 {
-  printk( "Hello, Kernel World!\n" );
+  printk(KERN_DEBUG "Hello, Kernel World!\n" );
   // Non-zero return means that
   // the module couldn't be loaded.
   return 0;
