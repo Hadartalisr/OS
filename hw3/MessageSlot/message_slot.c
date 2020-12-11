@@ -51,7 +51,15 @@ int allocate_new_radix_tree(int minor_num){
   return SUCCESS;
 }
 
-
+int free_radix_tree(int minor_num){
+  struct radix_tree_root *root = minors[minor_num];
+  struct radix_tree_iter iter; 
+  void ** slot;
+  radix_tree_for_each_slot(slot, root, &iter, 0){
+    kfree(*slot);
+  }
+  return SUCCESS; 
+}
 
 
 //================== DEVICE FUNCTIONS ===========================
@@ -75,15 +83,17 @@ static int device_open( struct inode* inode,
   spin_unlock_irqrestore(&device_info.lock, flags);
 
   
+
   // allocate normal kernel ram 
   fc = kmalloc(sizeof(file_config),GFP_KERNEL); 
   fc->channel_id = 0;
   fc->minor_num =  iminor(inode); // as was told in the recitation - 
   // we can get the minor num from the inode.
+  file->private_data = fc; // file structure has this usable field
 
-
-
-
+  if(minors[fc->minor_num] == NULL){
+    allocate_new_radix_tree(fc->minor_num);
+  }
 
   return SUCCESS;
 }
@@ -93,12 +103,18 @@ static int device_release( struct inode* inode,
                            struct file*  file)
 {
   unsigned long flags; // for spinlock
+  file_config* fc;
+
   printk("Invoking device_release(%p,%p)\n", inode, file);
 
   // ready for our next caller
   spin_lock_irqsave(&device_info.lock, flags);
   --dev_open_flag;
   spin_unlock_irqrestore(&device_info.lock, flags);
+
+
+  fc = (file_config*)file->private_data; 
+  kfree(fc);
   return SUCCESS;
 }
 
@@ -145,9 +161,9 @@ static long device_ioctl( struct   file* file,
   {
     return -EINVAL;
   }
-
-  // Get the parameter given to ioctl by the process
-  printk( "Invoking ioctl: setting MSG_SLOT_CHANNEL to %ld\n", ioctl_param );
+  // change the configuration in the file so its inner private data
+  // which holds the channel will be updated to ioctl_param 
+  ((file_config *)(file -> private_data))-> channel_id = ioctl_param;
 
   return SUCCESS;
 }
