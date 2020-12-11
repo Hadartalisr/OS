@@ -42,6 +42,7 @@ static struct radix_tree_root *minors[256]; // there can be at most 256 differen
 
 //================== Radix Tree FUNCTIONS ===========================
 
+
 int allocate_new_radix_tree(int minor_num){
   if(minor_num < 0 || minor_num >= 256){
     return SUCCESS;
@@ -59,6 +60,16 @@ int free_radix_tree(int minor_num){
     kfree(*slot);
   }
   return SUCCESS; 
+}
+
+int free_all_minors(void){
+  int i;
+  for(i = 0; i < 256; i++){
+    if(minors[i] != NULL){
+      free_radix_tree(i);
+    }
+  };
+  return SUCCESS;
 }
 
 
@@ -223,6 +234,7 @@ static void __exit simple_cleanup(void)
 {
   // Unregister the device - Should always succeed
   unregister_chrdev(MAJOR_NUM, DEVICE_RANGE_NAME);
+  free_all_minors();
 }
 
 
