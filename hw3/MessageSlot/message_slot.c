@@ -44,6 +44,9 @@ static struct radix_tree_root *minors[256]; // there can be at most 256 differen
 
 
 int allocate_new_radix_tree(int minor_num){
+
+  printk("allocate_new_radix_tree(%d)\n", minor_num);
+
   if(minor_num < 0 || minor_num >= 256){
     return SUCCESS;
   }
@@ -64,6 +67,9 @@ int free_radix_tree(int minor_num){
 
 int free_all_minors(void){
   int i;
+
+  printk("free_all_minors\n");
+
   for(i = 0; i < 256; i++){
     if(minors[i] != NULL){
       free_radix_tree(i);
@@ -80,8 +86,12 @@ struct message* get_message_from_file(struct file* file){
   struct radix_tree_root* root;
   struct message* message;
 
+  printk("Invoking get_message_from_file(%p)\n", file);
+
   minor_num = ((file_config *)(file -> private_data))-> minor_num;
+  printk(KERN_INFO "minor num - %d", minor_num);
   channel_id = ((file_config *)(file -> private_data))-> channel_id;
+  printk(KERN_INFO "channel_id - %ld", channel_id);
   root = minors[minor_num];
   if(channel_id == 0){
     return NULL;
@@ -125,7 +135,7 @@ static int device_open( struct inode* inode,
 
   // allocate normal kernel ram 
   fc = kmalloc(sizeof(file_config),GFP_KERNEL); 
-  fc->channel_id = 0;
+  fc->channel_id = 0; 
   fc->minor_num =  iminor(inode); // as was told in the recitation - 
   // we can get the minor num from the inode.
   file->private_data = fc; // file structure has this usable field
@@ -133,7 +143,8 @@ static int device_open( struct inode* inode,
   if(minors[fc->minor_num] == NULL){
     allocate_new_radix_tree(fc->minor_num);
   }
-
+  
+  printk("END - Invoking device_open(%p)\n", file);
   return SUCCESS;
 }
 
@@ -168,12 +179,24 @@ static ssize_t device_read( struct file* file,
 
   int status; 
   struct message* message;
+  unsigned long channel_id;
+
+  printk("Invoking device_read(%p)\n", file);
+
+  //check if ioctl was used before reading
+  channel_id = ((file_config *)(file -> private_data))-> channel_id;
+  if(channel_id == 0){
+    printk(KERN_ERR "ERROR - channel_id = 0\n");
+    return -EINVAL;
+  }
 
   message = get_message_from_file(file);
   status = copy_to_user(buffer, message->buffer, message->size);
   if(status < 0){
     return -EINVAL;
   }
+
+  printk("END - Invoking device_read(%p)\n", file);
   return message->size;
 }
 
@@ -185,11 +208,29 @@ static ssize_t device_write( struct file*       file,
                              size_t             length,
                              loff_t*            offset)
 {
+
   int i;
+  unsigned long channel_id;
   struct message* message;
 
+  printk("Invoking device_write(%p)\n", file);
+
+  //check if ioctl was used before writing
+  channel_id = ((file_config *)(file -> private_data))-> channel_id;
+  if(channel_id == 0){
+    printk(KERN_ERR "ERROR - channel_id = 0\n");
+    return -EINVAL;
+  }
+
+
   message = get_message_from_file(file);
-  if(message == NULL || buffer == NULL || length == 0 || length > BUF_LEN){
+
+  if(message == NULL){
+    printk(KERN_ERR "ERROR - message\n");
+    return -EINVAL;
+  }
+  if (buffer == NULL || length == 0 || length > BUF_LEN){
+    printk(KERN_ERR "ERROR - buffer\n");
     return -EINVAL;
   }
 
@@ -203,6 +244,7 @@ static ssize_t device_write( struct file*       file,
     message->size = 0;
   }
  
+  printk("END - Invoking device_write(%p)\n", file);
   // return the number of input characters used
   return i;
 }
@@ -263,7 +305,7 @@ static int __init simple_init(void)
     return rc;
   }
 
-  printk(KERN_ALERT "Registeration is successful. ");
+  printk(KERN_ALERT "\n\n\n\nRegisteration is successful.\n\n\n\n");
   
   return SUCCESS;
 }
