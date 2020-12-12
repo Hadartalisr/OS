@@ -5,6 +5,7 @@
 #include <sys/ioctl.h>  /* ioctl */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 int main(int argc, char* argv[])
@@ -33,7 +34,7 @@ int main(int argc, char* argv[])
     return EXIT_FAILURE;
   }
 
-  module_status = write(file_descriptor, argv[3], BUF_LEN);
+  module_status = write(file_descriptor, argv[3], strlen(argv[3]));
   if (module_status < 0){
     perror("ERROR - write module problem.");
     return EXIT_FAILURE;
