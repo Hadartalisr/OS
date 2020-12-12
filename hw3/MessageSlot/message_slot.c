@@ -79,7 +79,8 @@ int free_all_minors(void){
 }
 
 // return the message for a given file
-// if message doesnt exist and the channel_id is valid - create new message and returns it.
+// if message doesnt exist and the channel_id is valid 
+// - create new message and returns it.
 struct message* get_message_from_file(struct file* file){
   int minor_num;
   unsigned long channel_id;
@@ -105,6 +106,8 @@ struct message* get_message_from_file(struct file* file){
     message->size = 0;
     radix_tree_insert(root, channel_id, message);
   }
+
+  printk("END - Invoking get_message_from_file(%p)\n", file);
   return message;
 
 }
@@ -191,7 +194,10 @@ static ssize_t device_read( struct file* file,
   }
 
   message = get_message_from_file(file);
-  status = copy_to_user(buffer, message->buffer, message->size);
+  printk(KERN_INFO "buffer - %s\n", message->buffer);
+  printk(KERN_INFO "size - %d\n", message->size);
+
+  status = put_user(message->buffer, buffer);
   if(status < 0){
     return -EINVAL;
   }
@@ -214,14 +220,20 @@ static ssize_t device_write( struct file*       file,
   struct message* message;
 
   printk("Invoking device_write(%p)\n", file);
+  
+  if(length <= 0 || length > BUF_LEN){
+    printk(KERN_ERR "ERROR - EMSGSIZE\n");
+    return -EMSGSIZE;
+  }
+  
+  printk(KERN_INFO "The buffer to be writen - \n %s", buffer);
 
-  //check if ioctl was used before writing
+  //check if channel has been set
   channel_id = ((file_config *)(file -> private_data))-> channel_id;
   if(channel_id == 0){
     printk(KERN_ERR "ERROR - channel_id = 0\n");
     return -EINVAL;
   }
-
 
   message = get_message_from_file(file);
 
@@ -229,19 +241,17 @@ static ssize_t device_write( struct file*       file,
     printk(KERN_ERR "ERROR - message\n");
     return -EINVAL;
   }
-  if (buffer == NULL || length == 0 || length > BUF_LEN){
-    printk(KERN_ERR "ERROR - buffer\n");
-    return -EINVAL;
-  }
 
   for(i = 0 ; i < length ; i++){
     get_user(message->buffer[i], &buffer[i]);
   }
+
   if(i == length){ // OK
     message->size = length;
   }
   else{
     message->size = 0;
+    return -1;
   }
  
   printk("END - Invoking device_write(%p)\n", file);
