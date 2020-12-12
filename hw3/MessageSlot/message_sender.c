@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
     return EXIT_FAILURE;
   }
 
-  file_descriptor = open(argv[1], O_WRONLY);
+  file_descriptor = open(argv[1], O_RDWR);
   if (file_descriptor < 0){
     perror("ERROR - file_descriptor was not found.");
     return EXIT_FAILURE;
@@ -28,7 +28,8 @@ int main(int argc, char* argv[])
   
   channel_id = atoi(argv[2]);
 
-  module_status = ioctl(file_descriptor,MSG_SLOT_CHANNEL, channel_id);
+
+  module_status = ioctl(file_descriptor, MSG_SLOT_CHANNEL, channel_id);
   if (module_status < 0){
     perror("ERROR - ioctl module problem .");
     return EXIT_FAILURE;

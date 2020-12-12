@@ -121,7 +121,6 @@ static int device_open( struct inode* inode,
   unsigned long flags; // for spinlock
   file_config* fc;
 
-
   // spin_unlock
   printk("Invoking device_open(%p)\n", file);
   // We don't want to talk to two processes at the same time
@@ -168,6 +167,7 @@ static int device_release( struct inode* inode,
 
   fc = (file_config*)file->private_data; 
   kfree(fc);
+  printk("END - Invoking device_release(%p,%p)\n\n\n\n\n\n", inode, file);
   return SUCCESS;
 }
 
@@ -199,13 +199,16 @@ static ssize_t device_read( struct file* file,
   printk(KERN_INFO "size - %d", message->size);
 
   if(message->size == 0){
+    printk(KERN_ERR "ERROR - message->size == 0.\n");
     return -EWOULDBLOCK;
   }
 
   if(length < message->size){
+    printk(KERN_ERR "ERROR - length < message->size.\n");
     return -ENOSPC;
   }
 
+  // Here i know that the length is not 0
   for(i = 0 ; i < message->size ; i++){ 
     status = put_user(message->buffer[i], &buffer[i]);
     if(status < 0){
@@ -213,7 +216,7 @@ static ssize_t device_read( struct file* file,
     }
   }
 
-  printk("END - Invoking device_read(%p)\n", file);
+  printk("END - Invoking device_read(%p), length  = %d\n", file, i);
   return i;
 }
 
@@ -278,6 +281,8 @@ static long device_ioctl( struct   file* file,
                           unsigned int   ioctl_command_id,
                           unsigned long  ioctl_param )
 {
+  printk("Invoking device_ioctl(%p), ioctl_param(%ld) \n", file, ioctl_param);
+
   // Make sure that the CMD and the param (channel_id) are valid 
   if((MSG_SLOT_CHANNEL != ioctl_command_id ) || (ioctl_param <= 0) )
   {
@@ -287,6 +292,7 @@ static long device_ioctl( struct   file* file,
   // which holds the channel will be updated to ioctl_param 
   ((file_config *)(file -> private_data))-> channel_id = ioctl_param;
 
+  printk("END - Invoking device_ioctl(%p), ioctl_param(%ld) \n", file, ioctl_param);
   return SUCCESS;
 }
 
@@ -329,7 +335,7 @@ static int __init simple_init(void)
     return rc;
   }
 
-  printk(KERN_ALERT "\n\n\n\nRegisteration is successful.\n\n\n\n");
+  printk(KERN_ALERT "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nRegisteration is successful.\n\n\n\n");
   
   return SUCCESS;
 }
@@ -338,6 +344,8 @@ static int __init simple_init(void)
 static void __exit simple_cleanup(void)
 {
   // Unregister the device - Should always succeed
+  printk(KERN_ALERT "\n\n\n\n\n\n\n\n\n\n\n simple clean up \n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+  
   unregister_chrdev(MAJOR_NUM, DEVICE_RANGE_NAME);
   free_all_minors();
 }
