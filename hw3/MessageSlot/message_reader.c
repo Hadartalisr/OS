@@ -43,8 +43,7 @@ int main(int argc, char* argv[])
     return EXIT_FAILURE;
   }
   
-
-  status = write(STDOUT_FILENO, buffer, module_status);
+  status = write(STDOUT_FILENO, buffer, read_status);
   if(status < 0){
     perror("ERROR - read module problem 2.");
     return EXIT_FAILURE;
