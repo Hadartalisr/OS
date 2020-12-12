@@ -263,15 +263,9 @@ static int __init simple_init(void)
     return rc;
   }
 
-  printk( "Registeration is successful. ");
-  printk( "If you want to talk to the device driver,\n" );
-  printk( "you have to create a device file:\n" );
-  printk( "mknod /dev/%s c %d MINOR_NUM\n", DEVICE_RANGE_NAME, MAJOR_NUM );
-  printk( "You can echo/cat to/from the device file.\n" );
-  printk( "Dont forget to rm the device file and "
-          "rmmod when you're done\n" );
-
-  return 0;
+  printk(KERN_ALERT "Registeration is successful. ");
+  
+  return SUCCESS;
 }
 
 //---------------------------------------------------------------
