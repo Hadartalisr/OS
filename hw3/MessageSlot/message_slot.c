@@ -232,6 +232,9 @@ static ssize_t device_write( struct file*       file,
 
   printk("Invoking device_write(%p)\n", file);
   
+  printk(KERN_INFO "length - (%ld)\n", length);
+  printk(KERN_INFO "buffer - (%s)\n", buffer);
+
   if(buffer == NULL || length <= 0 || length > BUF_LEN){
     printk(KERN_ERR "ERROR - EMSGSIZE\n");
     return -EMSGSIZE;
