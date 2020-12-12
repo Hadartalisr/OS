@@ -183,6 +183,7 @@ static ssize_t device_read( struct file* file,
   int status; 
   struct message* message;
   unsigned long channel_id;
+  int i;
 
   printk("Invoking device_read(%p)\n", file);
 
@@ -194,16 +195,26 @@ static ssize_t device_read( struct file* file,
   }
 
   message = get_message_from_file(file);
-  printk(KERN_INFO "buffer - %s\n", message->buffer);
-  printk(KERN_INFO "size - %d\n", message->size);
+  printk(KERN_INFO "buffer - %s", message->buffer);
+  printk(KERN_INFO "size - %d", message->size);
 
-  status = put_user(message->buffer, buffer);
-  if(status < 0){
-    return -EINVAL;
+  if(message->size == 0){
+    return -EWOULDBLOCK;
+  }
+
+  if(length < message->size){
+    return -ENOSPC;
+  }
+
+  for(i = 0 ; i < message->size ; i++){ 
+    status = put_user(message->buffer[i], &buffer[i]);
+    if(status < 0){
+      return -EINVAL;
+    }
   }
 
   printk("END - Invoking device_read(%p)\n", file);
-  return message->size;
+  return i;
 }
 
 //---------------------------------------------------------------
@@ -221,7 +232,7 @@ static ssize_t device_write( struct file*       file,
 
   printk("Invoking device_write(%p)\n", file);
   
-  if(length <= 0 || length > BUF_LEN){
+  if(buffer == NULL || length <= 0 || length > BUF_LEN){
     printk(KERN_ERR "ERROR - EMSGSIZE\n");
     return -EMSGSIZE;
   }
