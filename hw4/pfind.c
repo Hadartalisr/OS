@@ -61,21 +61,21 @@ int push (struct my_list* list, char* directory){
   if(is_empty(list)){
     list -> head = node;
     list -> tail = node;
-    return EXIT_SUCCESS;
+    return(EXIT_SUCCESS);
   }
   else{
     list->tail->next = node;
     list->tail = node;
   }
+  return(EXIT_SUCCESS);
 }
+
 
 /**
  * pull directory from the head of the list.
- * if the list is empty return NULL.
  */
-char* pull(struct my_list* list){
+int pull(struct my_list* list, char** directory){
   struct my_node* h;
-  char* new_directory;
 
   if(list == NULL){
     perror("ERROR - list was not initialized.");
@@ -83,7 +83,7 @@ char* pull(struct my_list* list){
   }
   if(list->head == NULL){
     printf("list is empty.\n");
-    return NULL;
+    return(EXIT_FAILURE);
   }
 
   h = list->head; // head node
@@ -91,16 +91,18 @@ char* pull(struct my_list* list){
   if(list-> head == NULL){ // the list is empty
     list->tail = NULL;
   }
-  new_directory = h->directory;
+  if(directory != NULL){
+    *directory = h->directory; 
+  }
   free(h);
-  return new_directory;
+  return(EXIT_SUCCESS);
 }
 
 
 int my_list_free(struct my_list* list){
   while(list -> head){
     free(list->head->directory);
-    pull(list);
+    pull(list, NULL);
   }
   return(EXIT_SUCCESS);
 }
@@ -110,33 +112,8 @@ int my_list_free(struct my_list* list){
 //-------------     -------------     Single Thread Methods     -------------     -------------
 //---------------------------------------------------------------------------------------------
 
-void * push(void *t) {
-  long my_id = (long)t;
 
-  for (int i = 0; i < 10; i++) {
-    pthread_mutex_lock(&count_mutex);
-    count++;
-
-    // Check the value of count and signal waiting thread when condition is
-    // reached.  Note that this occurs while mutex is locked.
-    if (count == 10) {
-      pthread_cond_signal(&count_threshold_cv);
-      printf("push(): thread %ld, count = %d  Threshold reached.\n", my_id,
-             count);
-    }
-
-    printf("push(): thread %ld, count = %d, unlocking mutex\n", my_id,
-           count);
-    pthread_mutex_unlock(&count_mutex);
-
-    // Do some "work" so threads can alternate on mutex lock
-    sleep(1);
-  }
-  pthread_exit(NULL);
-}
-
-//----------------------------------------------------------------------------
-void * thread_func(void *t) {
+void* thread_func(void *t) {
   long my_id = (long)t;
 
   printf("Starting thread_func(): thread %ld\n", my_id);
@@ -204,29 +181,31 @@ void check_status(int status){
 int init_threads(pthread_t* threads, int number_of_threads){
   int rc ;
   for(int i = 0 ; i < number_of_threads; i++){
-    rc = pthread_create(&threads[i], NULL, thread_func, (void*)i);
+    rc = pthread_create(&threads[i], NULL, thread_func, (void *)&i);
     if(rc != EXIT_SUCCESS){
       perror("ERROR - init_threads : pthread_create failure.");
     }
   }
+  return(EXIT_SUCCESS);
 }
+
 
 int wait_for_threads_to_finish(pthread_t* threads, int number_of_threads){
   int rc;
-  int status;
+  void* status;
 
   for (int i = 0; i < number_of_threads; i++) {
     rc = pthread_join(threads[i], &status);
     if (rc) {
-      printf("ERROR in pthread_join():"
-             " %s\n",
-             strerror(rc));
+      fprintf(stderr, "ERROR in pthread_join(): %d\n",rc);
       exit(-1);
     }
-    printf("wait_for_threads_to_finish: completed join with thread %ld "
+    printf("wait_for_threads_to_finish: completed join with thread %d "
            "having a status of %ld\n",i, (long)status);
   }
+  return(EXIT_SUCCESS);
 }
+
 
 int main(int argc, char *argv[]) {
   
