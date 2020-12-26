@@ -106,7 +106,10 @@ int my_list_free(struct my_list* list){
 }
 
 
-//----------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------------- 
+//-------------     -------------     Single Thread Methods     -------------     -------------
+//---------------------------------------------------------------------------------------------
+
 void * push(void *t) {
   long my_id = (long)t;
 
@@ -133,10 +136,10 @@ void * push(void *t) {
 }
 
 //----------------------------------------------------------------------------
-void * pull(void *t) {
+void * thread_func(void *t) {
   long my_id = (long)t;
 
-  printf("Starting watch_count(): thread %ld\n", my_id);
+  printf("Starting thread_func(): thread %ld\n", my_id);
 
   /*
    Lock mutex and wait for signal.  Note that the pthread_cond_wait
@@ -145,6 +148,7 @@ void * pull(void *t) {
    the waiting thread, the loop will be skipped to prevent pthread_cond_wait
    from never returning.
   */
+  /*
   pthread_mutex_lock(&count_mutex);
   while (count < 10) {
     printf("pull(): thread %ld Meditating on condition variable.\n",
@@ -157,41 +161,108 @@ void * pull(void *t) {
     printf("pull(): thread %ld count now = %d.\n", my_id, count);
   }
   pthread_mutex_unlock(&count_mutex);
-  pthread_exit(NULL);
+  */
+  pthread_exit((void *)&my_id);
 }
 
-//----------------------------------------------------------------------------
-// individual directories are searched by different threads
-// argv[1] - search root directory
-// argv[2] - search term
-// argv[3] - num of threads ( > 0)
+
+
+
+//------------------------------------------------------------------------------------ 
+//-------------     -------------     Main Methods     -------------     -------------
+//------------------------------------------------------------------------------------
+
+
+/**
+ * argv[1] - search root directory
+ * argv[2] - search term
+ * argv[3] - num of threads ( > 0)
+ */
+int get_arguments(int argc, char* argv[],
+  char** root, char** search_term, int* number_of_threads) {
+  if (argc != 4){
+    perror("ERROR - get_arguments : argc != 4");
+    return(EXIT_FAILURE);
+  }
+  *root = argv[1];
+  *search_term = argv[2];
+  *number_of_threads = atoi(argv[3]);
+  if(*number_of_threads < 1){
+    return(EXIT_FAILURE);
+  }
+  return(EXIT_SUCCESS);
+}
+
+
+void check_status(int status){
+  if(status == EXIT_FAILURE){
+    exit(EXIT_FAILURE);
+  }
+}
+
+
+int init_threads(pthread_t* threads, int number_of_threads){
+  int rc ;
+  for(int i = 0 ; i < number_of_threads; i++){
+    rc = pthread_create(&threads[i], NULL, thread_func, (void*)i);
+    if(rc != EXIT_SUCCESS){
+      perror("ERROR - init_threads : pthread_create failure.");
+    }
+  }
+}
+
+int wait_for_threads_to_finish(pthread_t* threads, int number_of_threads){
+  int rc;
+  int status;
+
+  for (int i = 0; i < number_of_threads; i++) {
+    rc = pthread_join(threads[i], &status);
+    if (rc) {
+      printf("ERROR in pthread_join():"
+             " %s\n",
+             strerror(rc));
+      exit(-1);
+    }
+    printf("wait_for_threads_to_finish: completed join with thread %ld "
+           "having a status of %ld\n",i, (long)status);
+  }
+}
+
 int main(int argc, char *argv[]) {
   
-  int rc;
-  long t1 = 1, t2 = 2, t3 = 3;
-  pthread_t threads[3];
-  pthread_attr_t attr;
+  int status;
+
+  int number_of_threads;
+  char* search_term;
+  char* root;
+  pthread_t* threads;
+
+
+  // get arguments
+  status = get_arguments(argc, argv, &root, &search_term, &number_of_threads);
+  check_status(status);
+
+
+  // allocate memory for the threads
+  threads = (pthread_t*)calloc(number_of_threads, sizeof(pthread_t*));
+  if(threads == NULL){
+    perror("ERROR - in calloc threads.\n");
+    return(EXIT_FAILURE);
+  }
 
   // Initialize mutex and condition variable objects
   pthread_mutex_init(&count_mutex, NULL);
   pthread_cond_init(&count_threshold_cv, NULL);
 
-  // For portability, explicitly create threads in a joinable state
-  pthread_attr_init(&attr);
-  pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-  pthread_create(&threads[0], &attr, pull, (void *)t1);
-  pthread_create(&threads[1], &attr, push, (void *)t2);
-  pthread_create(&threads[2], &attr, push, (void *)t3);
 
-  // Wait for all threads to complete
-  for (int i = 0; i < NUM_THREADS; i++) {
-    pthread_join(threads[i], NULL);
-  }
+  //init_threads
+  init_threads(threads, number_of_threads);
+  wait_for_threads_to_finish(threads, number_of_threads);
 
-  printf("Main(): Waited on %d  threads. Done.\n", NUM_THREADS);
+
+  printf("Main(): Waited on %d  threads. Done.\n", number_of_threads);
 
   // Clean up and exit
-  pthread_attr_destroy(&attr);
   pthread_mutex_destroy(&count_mutex);
   pthread_cond_destroy(&count_threshold_cv);
   pthread_exit(NULL);
