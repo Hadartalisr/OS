@@ -13,12 +13,12 @@ pthread_mutex_t lock;
 
 //====================================================
 int next_counter(void) {
-  // pthread_mutex_lock( &lock );
-  // int temp = ++counter;
-  // pthread_mutex_unlock( &lock );
-  // return temp;
+  pthread_mutex_lock( &lock );
+  int temp = ++counter;
+  pthread_mutex_unlock( &lock );
+  return temp;
 
-  return ++counter;
+  //return ++counter;
 }
 
 //====================================================

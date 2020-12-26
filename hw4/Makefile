@@ -10,5 +10,5 @@ hw4: hw4.o
 	./hw4.o
 
 hw4.o:
-	gcc $(FLAGS) simple_thread.c -o hw4.o $(LIBS)
+	gcc $(FLAGS) mutex_ex3.c -o hw4.o $(LIBS)
  
