@@ -2,6 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <dirent.h>
+#include <linux/limits.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <string.h>
 
 struct my_node
 {
@@ -15,8 +20,14 @@ struct my_list
   struct my_node* tail;
 };
 
+
+pthread_mutex_t pull_lock;
+pthread_cond_t directory_was_pushed;
+
+
+// number of files we found
 pthread_mutex_t count_mutex;
-pthread_cond_t count_threshold_cv;
+int count = 0;
 
 
 //------------------------------------------------------------------------------------ 
@@ -113,10 +124,69 @@ int my_list_free(struct my_list* list){
 //---------------------------------------------------------------------------------------------
 
 
+int increase_count(){
+  count += 1;
+  return(EXIT_SUCCESS);
+} 
+
+
+int handle_directory(char* directory_path){
+  struct dirent* dir_entry;
+  DIR* directory;
+  char* path;
+  int rc = 0;
+
+  if((directory = opendir(directory_path)) == NULL){
+    fprintf(stderr,"ERROR - handle_directory : could not open path %s.\n",
+    directory_path);
+    return(EXIT_SUCCESS);
+  }
+
+  while((dir_entry = readdir(directory)) != NULL){
+    struct stat my_stat;
+
+    // concat the new path of the file/dir to the existing path
+    path = directory_path;
+    if(directory_path[strlen(directory_path)-1] != '/'){
+      path = strcat(path, "/");
+    }
+    path = strcat(path,dir_entry->d_name);
+
+    rc = lstat(path, &my_stat); // we use lstat because softlink can exist. 
+    if(rc >= 0){
+      fprintf(stderr, "ERROR - lstat couldn't handle path: %s\n", path);
+    }
+
+  }
+
+  closedir(directory);
+  return(EXIT_SUCCESS);
+}
+
+
+int handle_file(char* file_path, char* file_name, char* search_term){
+  if((strcmp(file_name,".") == 0) || (strcmp(file_name,".") == 1)){
+    return EXIT_SUCCESS;
+  }
+  if(strstr(file_name,search_term) != NULL){
+    pthread_mutex_lock(&count_mutex);
+    increase_count();
+    pthread_mutex_unlock(&count_mutex);
+    printf("%s\n", file_path);
+  }
+  return(EXIT_SUCCESS);
+}
+
+
+
+
+
+
 void* thread_func(void *t) {
   long my_id = (long)t;
 
   printf("Starting thread_func(): thread %ld\n", my_id);
+  
 
   /*
    Lock mutex and wait for signal.  Note that the pthread_cond_wait
@@ -124,8 +194,8 @@ void* thread_func(void *t) {
    Also, note that if COUNT_LIMIT is reached before this routine is run by
    the waiting thread, the loop will be skipped to prevent pthread_cond_wait
    from never returning.
-  */
-  /*
+  
+  
   pthread_mutex_lock(&count_mutex);
   while (count < 10) {
     printf("pull(): thread %ld Meditating on condition variable.\n",
@@ -207,6 +277,8 @@ int wait_for_threads_to_finish(pthread_t* threads, int number_of_threads){
 }
 
 
+
+
 int main(int argc, char *argv[]) {
   
   int status;
@@ -231,19 +303,21 @@ int main(int argc, char *argv[]) {
 
   // Initialize mutex and condition variable objects
   pthread_mutex_init(&count_mutex, NULL);
-  pthread_cond_init(&count_threshold_cv, NULL);
+  //pthread_cond_init(&count_threshold_cv, NULL);
 
 
   //init_threads
-  init_threads(threads, number_of_threads);
-  wait_for_threads_to_finish(threads, number_of_threads);
+  //init_threads(threads, number_of_threads);
+  //wait_for_threads_to_finish(threads, number_of_threads);
 
+  handle_directory(root);
 
   printf("Main(): Waited on %d  threads. Done.\n", number_of_threads);
+  printf("Done searching, found %d files\n", count);
 
   // Clean up and exit
   pthread_mutex_destroy(&count_mutex);
-  pthread_cond_destroy(&count_threshold_cv);
+  //pthread_cond_destroy(&count_threshold_cv);
   pthread_exit(NULL);
 }
 //============================== END OF FILE =================================
