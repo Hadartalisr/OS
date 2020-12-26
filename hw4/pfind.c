@@ -20,8 +20,10 @@ struct my_list
   struct my_node* tail;
 };
 
+struct my_list* list;
+char* search_term;
 
-pthread_mutex_t pull_lock;
+pthread_mutex_t list_lock;
 pthread_cond_t directory_was_pushed;
 
 
@@ -33,11 +35,16 @@ int count = 0;
 //------------------------------------------------------------------------------------ 
 //-------------     -------------     List Methods     -------------     -------------
 //------------------------------------------------------------------------------------     
-struct my_list* my_list_init(void){
-  struct my_list* list = (struct my_list*)calloc(1,sizeof(struct my_list*));
+
+int my_list_init(void){
+  list = (struct my_list*)calloc(1,sizeof(struct my_list*));
+  if(list == NULL){
+    perror("ERROR - my_list_init : cound not allocate list.\n");
+    return(EXIT_FAILURE);
+  }
   list->head = NULL;
   list->tail = NULL;
-  return list;
+  return(EXIT_SUCCESS);
 }
 
 /**
@@ -57,7 +64,7 @@ int is_empty(struct my_list *list){
 /**
  * push directory into the tail of the list.
  */
-int push (struct my_list* list, char* directory){
+int push (char* directory){
   struct my_node* node = (struct my_node*)calloc(1,sizeof(struct my_node*)); 
   if(node == NULL){
     perror("my_node calloc fault\n");
@@ -85,7 +92,7 @@ int push (struct my_list* list, char* directory){
 /**
  * pull directory from the head of the list.
  */
-int pull(struct my_list* list, char** directory){
+int pull(char** directory){
   struct my_node* h;
 
   if(list == NULL){
@@ -110,10 +117,10 @@ int pull(struct my_list* list, char** directory){
 }
 
 
-int my_list_free(struct my_list* list){
+int my_list_free(void){
   while(list -> head){
     free(list->head->directory);
-    pull(list, NULL);
+    pull(NULL);
   }
   return(EXIT_SUCCESS);
 }
@@ -123,14 +130,51 @@ int my_list_free(struct my_list* list){
 //-------------     -------------     Single Thread Methods     -------------     -------------
 //---------------------------------------------------------------------------------------------
 
+void check_status(int status){
+  if(status == EXIT_FAILURE){
+    exit(EXIT_FAILURE);
+  }
+}
+
 
 int increase_count(){
   count += 1;
   return(EXIT_SUCCESS);
-} 
+}
 
 
-int handle_directory(char* directory_path){
+int handle_directory(char* dir_path, char* file_name){
+  if((strcmp(file_name,".") == 0) || (strcmp(file_name,".") == 1)){
+    return EXIT_SUCCESS;
+  }
+  char* new_dir_path = malloc(sizeof(char)* PATH_MAX);
+  if(new_dir_path == NULL){
+    perror("ERROR - handle_directory : could not allocate memory for dir.");
+    return(EXIT_FAILURE);
+  }
+  pthread_mutex_lock(&list_lock);
+  push(new_dir_path);
+  pthread_mutex_unlock(&list_lock);
+  pthread_cond_broadcast(&directory_was_pushed);
+  return(EXIT_SUCCESS);
+}
+
+
+int handle_file(char* file_path, char* file_name){
+  if((strcmp(file_name,".") == 0) || (strcmp(file_name,".") == 1)){
+    return EXIT_SUCCESS;
+  }
+  if(strstr(file_name,search_term) != NULL){
+    pthread_mutex_lock(&count_mutex);
+    increase_count();
+    pthread_mutex_unlock(&count_mutex);
+    printf("%s\n", file_path);
+  }
+  return(EXIT_SUCCESS);
+}
+
+
+int handle_directory_from_list(char* directory_path){
   struct dirent* dir_entry;
   DIR* directory;
   char path[PATH_MAX];
@@ -156,7 +200,14 @@ int handle_directory(char* directory_path){
     if(rc < 0){
       fprintf(stderr, "ERROR - lstat couldn't handle path: %s\n", path);
     }
-    printf("%s\n",path);
+    if(S_ISDIR(my_stat.st_mode)){
+      rc = handle_directory(path, dir_entry->d_name);
+      check_status(rc);
+    }
+    else{
+      rc = handle_file(path, dir_entry->d_name);
+      check_status(rc);
+    }
 
   }
 
@@ -165,18 +216,7 @@ int handle_directory(char* directory_path){
 }
 
 
-int handle_file(char* file_path, char* file_name, char* search_term){
-  if((strcmp(file_name,".") == 0) || (strcmp(file_name,".") == 1)){
-    return EXIT_SUCCESS;
-  }
-  if(strstr(file_name,search_term) != NULL){
-    pthread_mutex_lock(&count_mutex);
-    increase_count();
-    pthread_mutex_unlock(&count_mutex);
-    printf("%s\n", file_path);
-  }
-  return(EXIT_SUCCESS);
-}
+
 
 
 
@@ -227,13 +267,13 @@ void* thread_func(void *t) {
  * argv[3] - num of threads ( > 0)
  */
 int get_arguments(int argc, char* argv[],
-  char** root, char** search_term, int* number_of_threads) {
+  char** root, int* number_of_threads) {
   if (argc != 4){
     perror("ERROR - get_arguments : argc != 4");
     return(EXIT_FAILURE);
   }
   *root = argv[1];
-  *search_term = argv[2];
+  search_term = argv[2];
   *number_of_threads = atoi(argv[3]);
   if(*number_of_threads < 1){
     return(EXIT_FAILURE);
@@ -241,12 +281,6 @@ int get_arguments(int argc, char* argv[],
   return(EXIT_SUCCESS);
 }
 
-
-void check_status(int status){
-  if(status == EXIT_FAILURE){
-    exit(EXIT_FAILURE);
-  }
-}
 
 
 int init_threads(pthread_t* threads, int number_of_threads){
@@ -279,19 +313,20 @@ int wait_for_threads_to_finish(pthread_t* threads, int number_of_threads){
 
 
 
-
 int main(int argc, char *argv[]) {
   
   int status;
 
   int number_of_threads;
-  char* search_term;
   char* root;
   pthread_t* threads;
 
 
   // get arguments
-  status = get_arguments(argc, argv, &root, &search_term, &number_of_threads);
+  status = get_arguments(argc, argv, &root, &number_of_threads);
+  check_status(status);
+
+  status = my_list_init();
   check_status(status);
 
 
@@ -304,19 +339,21 @@ int main(int argc, char *argv[]) {
 
   // Initialize mutex and condition variable objects
   pthread_mutex_init(&count_mutex, NULL);
-  //pthread_cond_init(&count_threshold_cv, NULL);
+  pthread_mutex_init(&list_lock, NULL);
+  pthread_cond_init(&directory_was_pushed, NULL);
 
 
   //init_threads
   //init_threads(threads, number_of_threads);
   //wait_for_threads_to_finish(threads, number_of_threads);
 
-  handle_directory(root);
+  handle_directory_from_list(root);
 
   printf("Main(): Waited on %d  threads. Done.\n", number_of_threads);
   printf("Done searching, found %d files\n", count);
 
   // Clean up and exit
+  my_list_free();
   pthread_mutex_destroy(&count_mutex);
   //pthread_cond_destroy(&count_threshold_cv);
   pthread_exit(NULL);
