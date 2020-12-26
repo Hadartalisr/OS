@@ -22,14 +22,21 @@ struct my_list
 
 struct my_list* list;
 char* search_term;
+int number_of_threads;
 
+
+// the amount of threads which are waiting for new directory
+// if all of them are waiting - we have finished the tree scan
+pthread_mutex_t waiting_threads_mutex;
+
+// list locks
 pthread_mutex_t list_lock;
 pthread_cond_t directory_was_pushed;
 
 
 // number of files we found
-pthread_mutex_t count_mutex;
-int count = 0;
+pthread_mutex_t files_count_mutex;
+int files_count = 0;
 
 
 //------------------------------------------------------------------------------------ 
@@ -137,8 +144,8 @@ void check_status(int status){
 }
 
 
-int increase_count(){
-  count += 1;
+int increase_files_count(){
+  files_count += 1;
   return(EXIT_SUCCESS);
 }
 
@@ -165,9 +172,9 @@ int handle_file(char* file_path, char* file_name){
     return EXIT_SUCCESS;
   }
   if(strstr(file_name,search_term) != NULL){
-    pthread_mutex_lock(&count_mutex);
-    increase_count();
-    pthread_mutex_unlock(&count_mutex);
+    pthread_mutex_lock(&files_count_mutex);
+    increase_files_count();
+    pthread_mutex_unlock(&files_count_mutex);
     printf("%s\n", file_path);
   }
   return(EXIT_SUCCESS);
@@ -267,15 +274,15 @@ void* thread_func(void *t) {
  * argv[3] - num of threads ( > 0)
  */
 int get_arguments(int argc, char* argv[],
-  char** root, int* number_of_threads) {
+  char** root) {
   if (argc != 4){
     perror("ERROR - get_arguments : argc != 4");
     return(EXIT_FAILURE);
   }
   *root = argv[1];
   search_term = argv[2];
-  *number_of_threads = atoi(argv[3]);
-  if(*number_of_threads < 1){
+  number_of_threads = atoi(argv[3]);
+  if(number_of_threads < 1){
     return(EXIT_FAILURE);
   }
   return(EXIT_SUCCESS);
@@ -283,7 +290,7 @@ int get_arguments(int argc, char* argv[],
 
 
 
-int init_threads(pthread_t* threads, int number_of_threads){
+int init_threads(pthread_t* threads){
   int rc ;
   for(int i = 0 ; i < number_of_threads; i++){
     rc = pthread_create(&threads[i], NULL, thread_func, (void *)&i);
@@ -295,7 +302,7 @@ int init_threads(pthread_t* threads, int number_of_threads){
 }
 
 
-int wait_for_threads_to_finish(pthread_t* threads, int number_of_threads){
+int wait_for_threads_to_finish(pthread_t* threads){
   int rc;
   void* status;
 
@@ -312,21 +319,46 @@ int wait_for_threads_to_finish(pthread_t* threads, int number_of_threads){
 }
 
 
+/**
+ * Initialize mutex and condition variable objects
+ */
+int oninit_mutex(void){
+  pthread_mutex_init(&files_count_mutex, NULL);
+  pthread_mutex_init(&list_lock, NULL);
+  pthread_mutex_init(&waiting_threads_mutex, NULL);
+  pthread_cond_init(&directory_was_pushed, NULL);
+  return(EXIT_SUCCESS);
+}
+
+
+/**
+ * 
+ */
+int ondestroy_mutex(void){
+  pthread_mutex_destroy(&files_count_mutex);  
+  pthread_mutex_destroy(&list_lock);
+  pthread_mutex_destroy(&waiting_threads_mutex);
+  pthread_cond_destroy(&directory_was_pushed);
+  return(EXIT_SUCCESS);
+}
+
+
 
 int main(int argc, char *argv[]) {
   
   int status;
-
-  int number_of_threads;
   char* root;
   pthread_t* threads;
 
 
   // get arguments
-  status = get_arguments(argc, argv, &root, &number_of_threads);
+  status = get_arguments(argc, argv, &root);
   check_status(status);
 
   status = my_list_init();
+  check_status(status);
+
+  status = oninit_mutex();
   check_status(status);
 
 
@@ -337,25 +369,19 @@ int main(int argc, char *argv[]) {
     return(EXIT_FAILURE);
   }
 
-  // Initialize mutex and condition variable objects
-  pthread_mutex_init(&count_mutex, NULL);
-  pthread_mutex_init(&list_lock, NULL);
-  pthread_cond_init(&directory_was_pushed, NULL);
+
+  init_threads(threads);
+  wait_for_threads_to_finish(threads);
+
+  
+  printf("Done searching, found %d files\n", files_count);
 
 
-  //init_threads
-  //init_threads(threads, number_of_threads);
-  //wait_for_threads_to_finish(threads, number_of_threads);
-
-  handle_directory_from_list(root);
-
-  printf("Main(): Waited on %d  threads. Done.\n", number_of_threads);
-  printf("Done searching, found %d files\n", count);
-
-  // Clean up and exit
+  status = ondestroy_mutex();
+  check_status(status);
   my_list_free();
-  pthread_mutex_destroy(&count_mutex);
-  //pthread_cond_destroy(&count_threshold_cv);
+
+
   pthread_exit(NULL);
 }
 //============================== END OF FILE =================================
