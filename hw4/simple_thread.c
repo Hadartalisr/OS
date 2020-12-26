@@ -14,8 +14,9 @@ int main(int argc, char* argv[]){
     printf("main thread #%lu\n", pthread_self());  
     pthread_t thread_id ; 
     void* status; 
-    pthread_create(&thread_id, NULL, thread_func, (void*)("hello !"));
-    
+    int rc;
+    rc = pthread_create(&thread_id, NULL, thread_func, (void*)("hello !"));
+
     pthread_join(thread_id, &status);
     printf("main - %d\n",(int*)status);
 
