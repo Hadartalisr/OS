@@ -25,9 +25,17 @@ char* search_term;
 int number_of_threads;
 
 
+pthread_mutex_t is_running_mutex;//
+int isRunning = 1;
+
 // the amount of threads which are waiting for new directory
 // if all of them are waiting - we have finished the tree scan
 pthread_mutex_t waiting_threads_mutex;
+pthread_cond_t another_waiting_thread;
+int waiting_threads = 0;
+
+// to check one by one if there are running threads
+pthread_mutex_t check_running_threads;
 
 // list locks
 pthread_mutex_t list_lock;
@@ -57,7 +65,7 @@ int my_list_init(void){
 /**
  * return 1 if list is empty, otherwise false.
  */
-int is_empty(struct my_list *list){
+int is_empty(){
   int i = 0;
   if(list == NULL){
     i = 1;
@@ -150,10 +158,8 @@ int increase_files_count(){
 }
 
 
-int handle_directory(char* dir_path, char* file_name){
-  if((strcmp(file_name,".") == 0) || (strcmp(file_name,".") == 1)){
-    return EXIT_SUCCESS;
-  }
+int handle_directory(char* dir_path){
+  printf("handle_directory - %s \n", dir_path);
   char* new_dir_path = malloc(sizeof(char)* PATH_MAX);
   if(new_dir_path == NULL){
     perror("ERROR - handle_directory : could not allocate memory for dir.");
@@ -162,12 +168,13 @@ int handle_directory(char* dir_path, char* file_name){
   pthread_mutex_lock(&list_lock);
   push(new_dir_path);
   pthread_mutex_unlock(&list_lock);
-  pthread_cond_broadcast(&directory_was_pushed);
+  pthread_cond_signal(&directory_was_pushed);
   return(EXIT_SUCCESS);
 }
 
 
 int handle_file(char* file_path, char* file_name){
+  printf("handle_file - %s", file_path);
   if((strcmp(file_name,".") == 0) || (strcmp(file_name,".") == 1)){
     return EXIT_SUCCESS;
   }
@@ -182,6 +189,7 @@ int handle_file(char* file_path, char* file_name){
 
 
 int handle_directory_from_list(char* directory_path){
+  printf("handle_directory_from_list - %s \n",directory_path);
   struct dirent* dir_entry;
   DIR* directory;
   char path[PATH_MAX];
@@ -208,7 +216,7 @@ int handle_directory_from_list(char* directory_path){
       fprintf(stderr, "ERROR - lstat couldn't handle path: %s\n", path);
     }
     if(S_ISDIR(my_stat.st_mode)){
-      rc = handle_directory(path, dir_entry->d_name);
+      rc = handle_directory(path);
       check_status(rc);
     }
     else{
@@ -223,40 +231,61 @@ int handle_directory_from_list(char* directory_path){
 }
 
 
+int get_is_running(void){
+  int i = 0 ;
+  pthread_mutex_lock(&is_running_mutex);
+  i = isRunning;
+  pthread_mutex_unlock(&is_running_mutex);
+  return(i);
+}
 
 
+void thread_wait_for_directory(){
+  // increase the number of waiting threads
+  pthread_mutex_lock(&waiting_threads_mutex);
+  printf("im waiting");
+  waiting_threads++;
+  pthread_cond_broadcast(&another_waiting_thread);
+  pthread_mutex_unlock(&waiting_threads_mutex);
+  
+  // each time one thread is waiting for new directory to get into the list
+  pthread_mutex_lock(&list_lock);
+  pthread_cond_wait(&directory_was_pushed, &list_lock);
+    pthread_mutex_lock(&waiting_threads_mutex);
+      waiting_threads--;
+    pthread_mutex_unlock(&waiting_threads_mutex);
+  pthread_mutex_unlock(&list_lock);
 
+}
 
 
 
 
 void* thread_func(void *t) {
   long my_id = (long)t;
+  int status;
 
   printf("Starting thread_func(): thread %ld\n", my_id);
   
 
-  /*
-   Lock mutex and wait for signal.  Note that the pthread_cond_wait
-   routine will automatically and atomically unlock mutex while it waits.
-   Also, note that if COUNT_LIMIT is reached before this routine is run by
-   the waiting thread, the loop will be skipped to prevent pthread_cond_wait
-   from never returning.
-  
-  
-  pthread_mutex_lock(&count_mutex);
-  while (count < 10) {
-    printf("pull(): thread %ld Meditating on condition variable.\n",
-           my_id);
-    pthread_cond_wait(&count_threshold_cv, &count_mutex);
-    printf("pull(): thread %ld Condition signal received.\n", my_id);
-
-    count += 125;
-
-    printf("pull(): thread %ld count now = %d.\n", my_id, count);
+  while(1) {
+    if(get_is_running() == 0){
+      //pthread_cond_signal(&)
+    }  
+    pthread_mutex_lock(&list_lock);
+    if(is_empty() == 0){
+      char* directory = (char*)calloc(1,sizeof(char*));
+      pull(&directory);
+      pthread_mutex_unlock(&list_lock);
+      status = handle_directory_from_list(directory);
+      check_status(status);
+    }
+    else{ // the list is empty
+      pthread_mutex_unlock(&list_lock);
+      thread_wait_for_directory();
+    }
   }
-  pthread_mutex_unlock(&count_mutex);
-  */
+   
   pthread_exit((void *)&my_id);
 }
 
@@ -303,18 +332,22 @@ int init_threads(pthread_t* threads){
 
 
 int wait_for_threads_to_finish(pthread_t* threads){
-  int rc;
-  void* status;
 
-  for (int i = 0; i < number_of_threads; i++) {
-    rc = pthread_join(threads[i], &status);
-    if (rc) {
-      fprintf(stderr, "ERROR in pthread_join(): %d\n",rc);
-      exit(-1);
+  while(1){
+    if(get_is_running() == 0){
+      break;
     }
-    printf("wait_for_threads_to_finish: completed join with thread %d "
-           "having a status of %ld\n",i, (long)status);
+    pthread_mutex_lock(&waiting_threads_mutex);
+    if(waiting_threads == number_of_threads){
+      pthread_mutex_lock(&is_running_mutex);
+      isRunning = 0;
+      pthread_mutex_unlock(&is_running_mutex);
+      break;
+    }
+    pthread_cond_wait(&another_waiting_thread, &waiting_threads_mutex);
+    pthread_mutex_unlock(&waiting_threads_mutex);
   }
+  
   return(EXIT_SUCCESS);
 }
 
@@ -323,8 +356,10 @@ int wait_for_threads_to_finish(pthread_t* threads){
  * Initialize mutex and condition variable objects
  */
 int oninit_mutex(void){
+  pthread_cond_init(&another_waiting_thread, NULL);
   pthread_mutex_init(&files_count_mutex, NULL);
   pthread_mutex_init(&list_lock, NULL);
+  pthread_mutex_init(&check_running_threads, NULL);
   pthread_mutex_init(&waiting_threads_mutex, NULL);
   pthread_cond_init(&directory_was_pushed, NULL);
   return(EXIT_SUCCESS);
@@ -335,8 +370,10 @@ int oninit_mutex(void){
  * 
  */
 int ondestroy_mutex(void){
+  pthread_cond_destroy(&another_waiting_thread);
   pthread_mutex_destroy(&files_count_mutex);  
   pthread_mutex_destroy(&list_lock);
+  pthread_mutex_destroy(&check_running_threads);
   pthread_mutex_destroy(&waiting_threads_mutex);
   pthread_cond_destroy(&directory_was_pushed);
   return(EXIT_SUCCESS);
@@ -357,6 +394,7 @@ int main(int argc, char *argv[]) {
 
   status = my_list_init();
   check_status(status);
+  push(root);
 
   status = oninit_mutex();
   check_status(status);
