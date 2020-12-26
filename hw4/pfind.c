@@ -133,7 +133,7 @@ int increase_count(){
 int handle_directory(char* directory_path){
   struct dirent* dir_entry;
   DIR* directory;
-  char* path;
+  char path[PATH_MAX];
   int rc = 0;
 
   if((directory = opendir(directory_path)) == NULL){
@@ -146,16 +146,17 @@ int handle_directory(char* directory_path){
     struct stat my_stat;
 
     // concat the new path of the file/dir to the existing path
-    path = directory_path;
+    strcpy(path, directory_path);
     if(directory_path[strlen(directory_path)-1] != '/'){
-      path = strcat(path, "/");
+      strcat(path, "/");
     }
-    path = strcat(path,dir_entry->d_name);
+    strcat(path,dir_entry->d_name);
 
     rc = lstat(path, &my_stat); // we use lstat because softlink can exist. 
-    if(rc >= 0){
+    if(rc < 0){
       fprintf(stderr, "ERROR - lstat couldn't handle path: %s\n", path);
     }
+    printf("%s\n",path);
 
   }
 
