@@ -35,6 +35,12 @@ pthread_mutex_t waiting_threads_mutex;
 pthread_cond_t another_waiting_thread;
 int waiting_threads = 0;
 
+
+pthread_mutex_t died_threads_mutex;
+pthread_cond_t another_thread_died;
+int died_threads = 0;
+
+
 // to check one by one if there are running threads
 pthread_mutex_t check_running_threads;
 
@@ -82,7 +88,7 @@ int is_empty(){
  */
 int push (char* directory){
   printf("push - %s \n", directory);
-  sleep(1);
+  //sleep(1);
   struct my_node* node = (struct my_node*)calloc(1,sizeof(struct my_node*)); 
   if(node == NULL){
     perror("my_node calloc fault\n");
@@ -112,7 +118,7 @@ int push (char* directory){
  */
 int pull(char** directory){
   printf("pull \n");
-  sleep(1);
+  //sleep(1);
   struct my_node* h = (struct my_node*)calloc(1,sizeof(struct my_node*));
 
   if(list == NULL){
@@ -204,7 +210,7 @@ int handle_directory_from_list(char* directory_path){
   if((directory = opendir(directory_path)) == NULL){
     fprintf(stderr,"ERROR - handle_directory : could not open path %s.\n",
     directory_path);
-    return(EXIT_SUCCESS);
+    return(EXIT_FAILURE);
   }
 
   while((dir_entry = readdir(directory)) != NULL){
@@ -224,20 +230,20 @@ int handle_directory_from_list(char* directory_path){
     if(S_ISDIR(my_stat.st_mode)){
       rc = handle_directory(path, dir_entry->d_name);
       if(rc == EXIT_FAILURE){
-        exit(EXIT_FAILURE);
+        return(EXIT_FAILURE);
       }
     }
     else{
       rc = handle_file(path, dir_entry->d_name);
       if(rc == EXIT_FAILURE){
-        exit(EXIT_FAILURE);
+        return(EXIT_FAILURE);
       }
     }
-
   }
 
   closedir(directory);
   return(EXIT_SUCCESS);
+
 }
 
 
@@ -246,6 +252,16 @@ int get_is_running(void){
   pthread_mutex_lock(&is_running_mutex);
   i = isRunning;
   pthread_mutex_unlock(&is_running_mutex);
+  return(i);
+}
+
+int get_has_all_died(void){
+  int i = 0 ;
+  pthread_mutex_lock(&died_threads_mutex);
+  if(number_of_threads == died_threads){
+    i = 1;
+  }
+  pthread_mutex_unlock(&died_threads_mutex);
   return(i);
 }
 
@@ -280,7 +296,7 @@ void* thread_func(void *t) {
 
   while(1) {
     if(get_is_running() == 0){
-      //pthread_cond_signal(&)
+      break;
     }  
     pthread_mutex_lock(&list_lock);
     if(is_empty() == 0){
@@ -289,7 +305,11 @@ void* thread_func(void *t) {
       pthread_mutex_unlock(&list_lock);
       status = handle_directory_from_list(directory);
       if(status == EXIT_FAILURE){
-        exit(EXIT_FAILURE);
+        pthread_mutex_lock(&died_threads_mutex);
+        died_threads += 1;
+        pthread_mutex_unlock(&died_threads_mutex);
+        pthread_cond_signal(&another_thread_died);
+        pthread_exit(NULL);
       }
     }
     else{ // the list is empty
@@ -357,11 +377,11 @@ int ondestroy_threads(){
 int wait_for_threads_to_finish(){
 
   while(1){
-    if(get_is_running() == 0){
+    if(get_is_running() == 0 || get_has_all_died() == 1){
       break;
     }
     pthread_mutex_lock(&waiting_threads_mutex);
-    sleep(1);
+    //sleep(1);
     printf("waiting_threads - %d\n", waiting_threads);
     if(waiting_threads == number_of_threads){
       pthread_mutex_lock(&is_running_mutex);
