@@ -23,6 +23,7 @@ struct my_list
 struct my_list* list;
 char* search_term;
 int number_of_threads;
+pthread_t* threads;
 
 
 pthread_mutex_t is_running_mutex;//
@@ -81,7 +82,7 @@ int is_empty(){
  */
 int push (char* directory){
   printf("push - %s \n", directory);
-  sleep(2);
+  sleep(1);
   struct my_node* node = (struct my_node*)calloc(1,sizeof(struct my_node*)); 
   if(node == NULL){
     perror("my_node calloc fault\n");
@@ -111,7 +112,7 @@ int push (char* directory){
  */
 int pull(char** directory){
   printf("pull \n");
-  sleep(2);
+  sleep(1);
   struct my_node* h = (struct my_node*)calloc(1,sizeof(struct my_node*));
 
   if(list == NULL){
@@ -162,7 +163,6 @@ int increase_files_count(){
 
 int handle_directory(char* dir_path, char* dir_name){
   printf("handle_directory -- %s \n", dir_path);
-  printf("dir_name - %s \n", dir_name);
   if((strcmp(dir_name,".") == 0) || (strcmp(dir_name,"..") == 0)){
     return EXIT_SUCCESS;
   }
@@ -172,7 +172,6 @@ int handle_directory(char* dir_path, char* dir_name){
     return(EXIT_FAILURE);
   }
   strcpy(new_dir_path, dir_path);
-  printf("new_dir_path - %s \n", new_dir_path);
   pthread_mutex_lock(&list_lock);
   push(new_dir_path);
   pthread_mutex_unlock(&list_lock);
@@ -190,7 +189,6 @@ int handle_file(char* file_path, char* file_name){
     pthread_mutex_lock(&files_count_mutex);
     increase_files_count();
     pthread_mutex_unlock(&files_count_mutex);
-    printf("%s\n", file_path);
   }
   return(EXIT_SUCCESS);
 }
@@ -255,7 +253,7 @@ int get_is_running(void){
 void thread_wait_for_directory(){
   // increase the number of waiting threads
   pthread_mutex_lock(&waiting_threads_mutex);
-  printf("im waiting");
+  printf("I'm waiting \n");
   waiting_threads++;
   pthread_cond_broadcast(&another_waiting_thread);
   pthread_mutex_unlock(&waiting_threads_mutex);
@@ -332,11 +330,10 @@ int get_arguments(int argc, char* argv[],
 }
 
 
-
-int init_threads(pthread_t* threads){
+int init_threads(){
   int rc ;
   for(int i = 0 ; i < number_of_threads; i++){
-    rc = pthread_create(&threads[i], NULL, thread_func, (void *)&i);
+    rc = pthread_create(&(threads[i]), NULL, thread_func, (void *)&i);
     if(rc != EXIT_SUCCESS){
       perror("ERROR - init_threads : pthread_create failure.");
     }
@@ -345,13 +342,27 @@ int init_threads(pthread_t* threads){
 }
 
 
-int wait_for_threads_to_finish(pthread_t* threads){
+int ondestroy_threads(){
+  int rc ;
+  for(int i = 0 ; i < number_of_threads; i++){
+    rc = pthread_cancel(threads[i]);
+    if(rc != EXIT_SUCCESS){
+      perror("ERROR - ondestroy_threads : pthread_cancel failure.");
+    }
+  }
+  return(EXIT_SUCCESS);
+}
+
+
+int wait_for_threads_to_finish(){
 
   while(1){
     if(get_is_running() == 0){
       break;
     }
     pthread_mutex_lock(&waiting_threads_mutex);
+    sleep(1);
+    printf("waiting_threads - %d\n", waiting_threads);
     if(waiting_threads == number_of_threads){
       pthread_mutex_lock(&is_running_mutex);
       isRunning = 0;
@@ -384,7 +395,9 @@ int oninit_mutex(void){
  * 
  */
 int ondestroy_mutex(void){
+  printf("%d",1);
   pthread_cond_destroy(&another_waiting_thread);
+  printf("%d",2);
   pthread_mutex_destroy(&files_count_mutex);  
   pthread_mutex_destroy(&list_lock);
   pthread_mutex_destroy(&check_running_threads);
@@ -399,7 +412,6 @@ int main(int argc, char *argv[]) {
   
   int status;
   char* root;
-  pthread_t* threads;
 
 
   // get arguments
@@ -428,8 +440,9 @@ int main(int argc, char *argv[]) {
   }
 
 
-  init_threads(threads);
+  init_threads();
   wait_for_threads_to_finish(threads);
+  ondestroy_threads();
 
   
   printf("Done searching, found %d files\n", files_count);
@@ -440,8 +453,9 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
   my_list_free();
+  
+  printf("finish");
 
-
-  pthread_exit(NULL);
+  return(EXIT_SUCCESS);
 }
 //============================== END OF FILE =================================
