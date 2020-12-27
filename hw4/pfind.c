@@ -89,7 +89,7 @@ int is_empty(){
  * push directory into the tail of the list.
  */
 int push (char* directory){
-  printf("push - %s \n", directory);
+  //printf("push - %s \n", directory);
   //sleep(1);
   struct my_node* node = (struct my_node*)calloc(1,sizeof(struct my_node*)); 
   if(node == NULL){
@@ -119,7 +119,7 @@ int push (char* directory){
  * pull directory from the head of the list.
  */
 int pull(char** directory){
-  printf("pull \n");
+  //printf("pull \n");
   //sleep(1);
   struct my_node* h = (struct my_node*)calloc(1,sizeof(struct my_node*));
 
@@ -128,7 +128,7 @@ int pull(char** directory){
     return(EXIT_FAILURE);
   }
   if(list->head == NULL){
-    printf("list is empty.\n");
+    //printf("list is empty.\n");
     return(EXIT_FAILURE);
   }
 
@@ -136,7 +136,7 @@ int pull(char** directory){
   list->head = h->next;
 
   if(list-> head == NULL){ // the list is empty
-    printf("now the list is empty \n");
+    //printf("now the list is empty \n");
     list->tail = NULL;
   }
   
@@ -170,7 +170,7 @@ int increase_files_count(){
 
 
 int handle_directory(char* dir_path, char* dir_name){
-  printf("handle_directory -- %s \n", dir_path);
+  //printf("handle_directory -- %s \n", dir_path);
   if((strcmp(dir_name,".") == 0) || (strcmp(dir_name,"..") == 0)){
     return EXIT_SUCCESS;
   }
@@ -189,7 +189,7 @@ int handle_directory(char* dir_path, char* dir_name){
 
 
 int handle_file(char* file_path, char* file_name){
-  printf("handle_file - %s \n", file_path);
+  //printf("handle_file - %s \n", file_path);
   if((strcmp(file_name,".") == 0) || (strcmp(file_name,"..") == 0)){
     return EXIT_SUCCESS;
   }
@@ -197,13 +197,14 @@ int handle_file(char* file_path, char* file_name){
     pthread_mutex_lock(&files_count_mutex);
     increase_files_count();
     pthread_mutex_unlock(&files_count_mutex);
+    printf("%s\n",file_path);
   }
   return(EXIT_SUCCESS);
 }
 
 
 int handle_directory_from_list(char* directory_path){
-  printf("handle_directory_from_list - %s \n", directory_path);
+  //printf("handle_directory_from_list - %s \n", directory_path);
   struct dirent* dir_entry;
   DIR* directory;
   char path[PATH_MAX];
@@ -217,7 +218,7 @@ int handle_directory_from_list(char* directory_path){
     else{
       fprintf(stderr,"ERROR - handle_directory : could not open path %s.\n",
         directory_path);
-    return(EXIT_FAILURE);
+      return(EXIT_FAILURE);
     }
   }
 
@@ -278,8 +279,9 @@ int get_has_all_died(void){
 void thread_wait_for_directory(){
   // increase the number of waiting threads
   pthread_mutex_lock(&waiting_threads_mutex);
-  printf("I'm waiting \n");
+  //printf("I'm waiting \n");
   waiting_threads++;
+  sleep(0);
   pthread_cond_broadcast(&another_waiting_thread);
   pthread_mutex_unlock(&waiting_threads_mutex);
   
@@ -300,13 +302,14 @@ void* thread_func(void *t) {
   long my_id = (long)t;
   int status;
 
-  printf("Starting thread_func(): thread %ld\n", my_id);
+  //printf("Starting thread_func(): thread %ld\n", my_id);
   
 
   while(1) {
     if(get_is_running() == 0){
       break;
     }  
+
     pthread_mutex_lock(&list_lock);
     if(is_empty() == 0){
       char* directory = (char*)calloc(1,sizeof(char*));
@@ -325,6 +328,7 @@ void* thread_func(void *t) {
       pthread_mutex_unlock(&list_lock);
       thread_wait_for_directory();
     }
+    sleep(0); // let other threads the ability to run
   }
    
   pthread_exit((void *)&my_id);
@@ -391,7 +395,7 @@ int wait_for_threads_to_finish(){
     }
     pthread_mutex_lock(&waiting_threads_mutex);
     //sleep(1);
-    printf("waiting_threads - %d\n", waiting_threads);
+    //printf("waiting_threads - %d\n", waiting_threads);
     if(waiting_threads == number_of_threads){
       pthread_mutex_lock(&is_running_mutex);
       isRunning = 0;
@@ -424,9 +428,7 @@ int oninit_mutex(void){
  * 
  */
 int ondestroy_mutex(void){
-  printf("%d",1);
   pthread_cond_destroy(&another_waiting_thread);
-  printf("%d",2);
   pthread_mutex_destroy(&files_count_mutex);  
   pthread_mutex_destroy(&list_lock);
   pthread_mutex_destroy(&check_running_threads);
@@ -453,7 +455,6 @@ int main(int argc, char *argv[]) {
   if(status == EXIT_FAILURE){
     exit(EXIT_FAILURE);
   }
-  push(root);
 
 
   status = oninit_mutex();
@@ -470,6 +471,7 @@ int main(int argc, char *argv[]) {
 
 
   init_threads();
+  push(root);
   wait_for_threads_to_finish(threads);
   ondestroy_threads();
 
@@ -482,8 +484,6 @@ int main(int argc, char *argv[]) {
     exit(EXIT_FAILURE);
   }
   my_list_free();
-  
-  printf("finish");
 
   return(EXIT_SUCCESS);
 }
