@@ -80,6 +80,8 @@ int is_empty(){
  * push directory into the tail of the list.
  */
 int push (char* directory){
+  printf("push - %s \n", directory);
+  sleep(2);
   struct my_node* node = (struct my_node*)calloc(1,sizeof(struct my_node*)); 
   if(node == NULL){
     perror("my_node calloc fault\n");
@@ -108,7 +110,9 @@ int push (char* directory){
  * pull directory from the head of the list.
  */
 int pull(char** directory){
-  struct my_node* h;
+  printf("pull \n");
+  sleep(2);
+  struct my_node* h = (struct my_node*)calloc(1,sizeof(struct my_node*));
 
   if(list == NULL){
     perror("ERROR - list was not initialized.");
@@ -121,12 +125,16 @@ int pull(char** directory){
 
   h = list->head; // head node
   list->head = h->next;
+
   if(list-> head == NULL){ // the list is empty
+    printf("now the list is empty \n");
     list->tail = NULL;
   }
+  
   if(directory != NULL){
     *directory = h->directory; 
   }
+  
   free(h);
   return(EXIT_SUCCESS);
 }
@@ -145,12 +153,6 @@ int my_list_free(void){
 //-------------     -------------     Single Thread Methods     -------------     -------------
 //---------------------------------------------------------------------------------------------
 
-void check_status(int status){
-  if(status == EXIT_FAILURE){
-    exit(EXIT_FAILURE);
-  }
-}
-
 
 int increase_files_count(){
   files_count += 1;
@@ -158,13 +160,19 @@ int increase_files_count(){
 }
 
 
-int handle_directory(char* dir_path){
-  printf("handle_directory - %s \n", dir_path);
+int handle_directory(char* dir_path, char* dir_name){
+  printf("handle_directory -- %s \n", dir_path);
+  printf("dir_name - %s \n", dir_name);
+  if((strcmp(dir_name,".") == 0) || (strcmp(dir_name,"..") == 0)){
+    return EXIT_SUCCESS;
+  }
   char* new_dir_path = malloc(sizeof(char)* PATH_MAX);
   if(new_dir_path == NULL){
-    perror("ERROR - handle_directory : could not allocate memory for dir.");
+    fprintf(stderr, "ERROR - handle_directory : could not allocate memory for dir.");
     return(EXIT_FAILURE);
   }
+  strcpy(new_dir_path, dir_path);
+  printf("new_dir_path - %s \n", new_dir_path);
   pthread_mutex_lock(&list_lock);
   push(new_dir_path);
   pthread_mutex_unlock(&list_lock);
@@ -174,8 +182,8 @@ int handle_directory(char* dir_path){
 
 
 int handle_file(char* file_path, char* file_name){
-  printf("handle_file - %s", file_path);
-  if((strcmp(file_name,".") == 0) || (strcmp(file_name,".") == 1)){
+  printf("handle_file - %s \n", file_path);
+  if((strcmp(file_name,".") == 0) || (strcmp(file_name,"..") == 0)){
     return EXIT_SUCCESS;
   }
   if(strstr(file_name,search_term) != NULL){
@@ -216,12 +224,16 @@ int handle_directory_from_list(char* directory_path){
       fprintf(stderr, "ERROR - lstat couldn't handle path: %s\n", path);
     }
     if(S_ISDIR(my_stat.st_mode)){
-      rc = handle_directory(path);
-      check_status(rc);
+      rc = handle_directory(path, dir_entry->d_name);
+      if(rc == EXIT_FAILURE){
+        exit(EXIT_FAILURE);
+      }
     }
     else{
       rc = handle_file(path, dir_entry->d_name);
-      check_status(rc);
+      if(rc == EXIT_FAILURE){
+        exit(EXIT_FAILURE);
+      }
     }
 
   }
@@ -278,7 +290,9 @@ void* thread_func(void *t) {
       pull(&directory);
       pthread_mutex_unlock(&list_lock);
       status = handle_directory_from_list(directory);
-      check_status(status);
+      if(status == EXIT_FAILURE){
+        exit(EXIT_FAILURE);
+      }
     }
     else{ // the list is empty
       pthread_mutex_unlock(&list_lock);
@@ -390,15 +404,21 @@ int main(int argc, char *argv[]) {
 
   // get arguments
   status = get_arguments(argc, argv, &root);
-  check_status(status);
+  if(status == EXIT_FAILURE){
+    exit(EXIT_FAILURE);
+  }
 
   status = my_list_init();
-  check_status(status);
+  if(status == EXIT_FAILURE){
+    exit(EXIT_FAILURE);
+  }
   push(root);
 
-  status = oninit_mutex();
-  check_status(status);
 
+  status = oninit_mutex();
+  if(status == EXIT_FAILURE){
+    exit(EXIT_FAILURE);
+  }
 
   // allocate memory for the threads
   threads = (pthread_t*)calloc(number_of_threads, sizeof(pthread_t*));
@@ -416,7 +436,9 @@ int main(int argc, char *argv[]) {
 
 
   status = ondestroy_mutex();
-  check_status(status);
+  if(status == EXIT_FAILURE){
+    exit(EXIT_FAILURE);
+  }
   my_list_free();
 
 

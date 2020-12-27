@@ -7,7 +7,7 @@ clean:
 	rm ./*.o
 
 hw4: hw4.o
-	./hw4.o ~/OS hw 1
+	./hw4.o ~/OS/hw2 sh 1
 
 hw4.o:
 	gcc $(FLAGS) pfind.c -o hw4.o $(LIBS)
