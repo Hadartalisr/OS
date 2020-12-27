@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <string.h>
+# include <errno.h>
+
 
 struct my_node
 {
@@ -201,17 +203,24 @@ int handle_file(char* file_path, char* file_name){
 
 
 int handle_directory_from_list(char* directory_path){
-  printf("handle_directory_from_list - %s \n",directory_path);
+  printf("handle_directory_from_list - %s \n", directory_path);
   struct dirent* dir_entry;
   DIR* directory;
   char path[PATH_MAX];
   int rc = 0;
 
-  if((directory = opendir(directory_path)) == NULL){
-    fprintf(stderr,"ERROR - handle_directory : could not open path %s.\n",
-    directory_path);
+  directory = opendir(directory_path);
+  if(directory == NULL){
+    if(errno == EACCES){
+      printf("Directory %s Permission denied.\n", directory_path);
+    }
+    else{
+      fprintf(stderr,"ERROR - handle_directory : could not open path %s.\n",
+        directory_path);
     return(EXIT_FAILURE);
+    }
   }
+
 
   while((dir_entry = readdir(directory)) != NULL){
     struct stat my_stat;
