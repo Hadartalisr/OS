@@ -28,6 +28,7 @@ int number_of_threads;
 pthread_t* threads;
 
 
+// if there are still running threads
 pthread_mutex_t is_running_mutex;//
 int isRunning = 1;
 
@@ -37,19 +38,18 @@ pthread_mutex_t waiting_threads_mutex;
 pthread_cond_t another_waiting_thread;
 int waiting_threads = 0;
 
-
+// to count if all the threads have died.
 pthread_mutex_t died_threads_mutex;
 pthread_cond_t another_thread_died;
 int died_threads = 0;
 
-
 // to check one by one if there are running threads
 pthread_mutex_t check_running_threads;
 
-// list locks
+
+// list locks - for pull and push
 pthread_mutex_t list_lock;
 pthread_cond_t directory_was_pushed;
-
 
 // number of files we found
 pthread_mutex_t files_count_mutex;
@@ -214,6 +214,7 @@ int handle_directory_from_list(char* directory_path){
   if(directory == NULL){
     if(errno == EACCES){
       printf("Directory %s Permission denied.\n", directory_path);
+      return(EXIT_SUCCESS);
     }
     else{
       fprintf(stderr,"ERROR - handle_directory : could not open path %s.\n",
@@ -221,7 +222,6 @@ int handle_directory_from_list(char* directory_path){
       return(EXIT_FAILURE);
     }
   }
-
 
   while((dir_entry = readdir(directory)) != NULL){
     struct stat my_stat;
@@ -297,14 +297,12 @@ void thread_wait_for_directory(){
 
 
 
-
 void* thread_func(void *t) {
   long my_id = (long)t;
   int status;
 
   //printf("Starting thread_func(): thread %ld\n", my_id);
   
-
   while(1) {
     if(get_is_running() == 0){
       break;
@@ -369,6 +367,7 @@ int init_threads(){
     rc = pthread_create(&(threads[i]), NULL, thread_func, (void *)&i);
     if(rc != EXIT_SUCCESS){
       perror("ERROR - init_threads : pthread_create failure.");
+      exit(EXIT_FAILURE);
     }
   }
   return(EXIT_SUCCESS);
